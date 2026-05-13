@@ -1,0 +1,28 @@
+/* src/index.css */
+:root {
+  --n1fit-black: #0a0a0a;
+  --n1fit-red: #d90429;
+  --n1fit-white: #edf2f4;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--n1fit-black);
+  color: var(--n1fit-white);
+  font-family: 'Inter', sans-serif;
+}
+
+/* Kırmızı butonlar ve vurgular için genel stil */
+.btn-n1fit {
+  background-color: var(--n1fit-red);
+  color: white;
+  font-weight: bold;
+  border: none;
+  transition: 0.3s;
+}
+
+.btn-n1fit:hover {
+  background-color: #ef233c;
+  transform: scale(1.05);
+}

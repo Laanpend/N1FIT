@@ -1,0 +1,522 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Activity, Clock, Dumbbell, Plus } from 'lucide-react';
+import api from '../api/axiosConfig';
+
+const MemberDetail = () => {
+    const { id } = useParams(); // URL'den adamın ID'sini çektik
+    const navigate = useNavigate();
+
+    const [member, setMember] = useState(null);
+    const [activeTab, setActiveTab] = useState('measurements'); // Hangi sekmedeyiz?
+    const [workoutProgram, setWorkoutProgram] = useState({ name: "Haftalık Program", days: [] });
+    const [selectedMuscleGroup, setSelectedMuscleGroup] = useState("");
+    const [currentAddForm, setCurrentAddForm] = useState({ exerciseId: '', sets: '', reps: '', restTime: '', duration: '', speed: '', incline: '' });
+    const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+    const [expandedDayIndex, setExpandedDayIndex] = useState(0);
+    const [editingDiet, setEditingDiet] = useState(null);
+    const [editingMeasurement, setEditingMeasurement] = useState(null);
+
+    // Listeler
+    const [measurements, setMeasurements] = useState([]);
+    const [diets, setDiets] = useState([]);
+
+    // Form Stateleri
+    const [measForm, setMeasForm] = useState({ weight: '', shoulder: '', chest: '', leftArm: '', rightArm: '', waist: '', neck: '' });
+    const [dietForm, setDietForm] = useState({ mealName: '', time: '', content: '' });
+    const [workoutForm, setWorkoutForm] = useState({ exerciseId: '', sets: '', reps: '' });
+    const [allExercises, setAllExercises] = useState([]); // Tüm hareketleri tutacak
+    const [workouts, setWorkouts] = useState([]); // Adamın mevcut idmanını tutacak 
+
+    useEffect(() => {
+        if (id) {
+            console.log("DİKKAT: Veriler çekiliyor, ID:", id);
+
+            // Sırayla mermileri sıkıyoruz
+            loadData();
+            fetchExercises();
+            fetchWorkoutProgram();
+        }
+    }, [id]);
+
+    const fetchExercises = async () => {
+        try {
+            const res = await api.get('/Admin/exercises');
+            setAllExercises(res.data || []);
+        } catch (err) { console.error("Kütüphane patladı"); }
+    };
+
+    // Bu genel fonksiyon zaten diğer her şeyi kapsıyor
+    const loadData = async () => {
+        try {
+            const res = await api.get(`/Admin/member-detail/${id}`);
+            setMember(res.data);
+            setMeasurements(res.data.measurements || []);
+            setDiets(res.data.diets || []);
+            // Eğer antrenman programı da bunun içindeyse onu da setle:
+            // setWorkoutProgram(res.data.workoutProgram);
+        } catch (err) { console.error("Genel veri çekme hatası"); }
+    };
+
+    const fetchWorkoutProgram = async () => {
+        try {
+            const res = await api.get(`/Admin/members/${id}/workout-program`);
+            if (res.data && res.data.days) setWorkoutProgram(res.data);
+        } catch (err) { console.error("Antrenman patladı"); }
+    };
+
+
+    // YENİ ÖLÇÜ EKLEME MOTORU
+    const handleAddMeasurement = async (e) => {
+        e.preventDefault();
+        try {
+            await api.post(`/Admin/member/${id}/measurements`, measForm);
+            alert("Yeni ölçüler dükkana hayırlı olsun!");
+            setMeasForm({ weight: '', shoulder: '', chest: '', leftArm: '', rightArm: '', waist: '', neck: '' });
+            fetchMeasurements(); // Tabloyu yenile
+        } catch (err) { alert("Ölçü eklerken patladık!"); }
+    };
+
+    // YENİ ÖĞÜN EKLEME MOTORU
+    const handleAddDiet = async (e) => {
+        e.preventDefault();
+        try {
+            await api.post(`/Admin/member/${id}/diet`, dietForm);
+            alert("Öğün listeye çakıldı!");
+            setDietForm({ mealName: '', time: '', content: '' });
+            fetchDiet(); // Tabloyu yenile
+        } catch (err) { alert("Diyet eklerken patladık!"); }
+    };
+
+    if (!member) return <div style={{ color: 'white', padding: '50px' }}>Canavar aranıyor...</div>;
+
+    const getDiff = (current, older, isNegativeBad = false) => {
+        if (!older) return null;
+        const diff = (current - older).toFixed(1);
+        if (diff == 0) return null;
+        const isPos = diff > 0;
+        // Kilo (isNegativeBad) artarsa kırmızı, omuz/kol artarsa yeşil
+        const color = isNegativeBad ? (isPos ? '#d90429' : '#4ade80') : (isPos ? '#4ade80' : '#d90429');
+        return <span style={{ color: color, fontSize: '0.8rem', marginLeft: '6px', fontWeight: 'bold' }}>({isPos ? '+' : ''}{diff})</span>;
+    };
+
+    const handleAddWorkout = async (e) => {
+        e.preventDefault();
+        try {
+            // DİKKAT: C# tarafında antrenmanı kaydetmek için hangi ucu kullanıyorsan onu yaz. 
+            // Senin AdminController'da muhtemelen "/Admin/members/${id}/workout-program" gibi bir şeydir.
+            // Eğer farklı bir uç yazdıysan burayı ona göre düzelt emmoğlu.
+            await api.post(`/Admin/members/${id}/workout-program`, workoutForm);
+
+            alert("Hareket aslanlar gibi adama kitlendi!");
+
+            // Formu temizliyoruz
+            setWorkoutForm({ exerciseId: '', sets: '', reps: '' });
+
+            // Tablo güncellensin diye sayfayı veya veriyi yenile (sayfayı yenilemek en garanti ve pisseçenektir)
+            window.location.reload();
+        } catch (err) {
+            console.error("Antrenman eklerken motor yaktık:", err);
+            alert("Hareket eklerken patladık dayı!");
+        }
+    };
+
+    const handleDeleteDiet = async (dietId) => {
+        if (window.confirm("Bu diyeti siktir edip atıyoruz emmoğlu, emin misin?")) {
+            try {
+                // C# tarafındaki silme ucuna göre adresi düzeltirsin (örn: /Admin/diet/5)
+                await api.delete(`/Admin/diets/${dietId}`);
+                alert("Diyet çöpe atıldı!");
+                fetchDiet(); // SQL'den taze listeyi çek
+            } catch (err) { console.error("Diyet silinirken patladık", err); }
+        }
+    };
+
+    // ÖLÇÜ SİLME OPERASYONU
+    const handleDeleteMeasurement = async (measurementId) => {
+        if (window.confirm("Bu ölçüyü tarihten siliyoruz, onaylıyor musun?")) {
+            try {
+                await api.delete(`/Admin/measurements/${measurementId}`);
+                alert("Ölçü buharlaştı!");
+                fetchMeasurements();
+            } catch (err) { console.error("Ölçü silinirken motor yaktık", err); }
+        }
+    };
+    // ÖLÇÜ GÜNCELLEME MODUNU AÇAN FONKSİYON
+    const handleEditMeasurement = (measurement) => {
+        setEditingMeasurement(measurement); // Güncellenecek veriyi hafızaya al
+
+        // EĞER ÖLÇÜ EKLEMEK İÇİN BİR FORM STATE'İN VARSA (örn: measurementForm),
+        // ONUN İÇİNİ BU VERİLERLE DOLDURMAN LAZIM Kİ İNPUTLAR DOLU GELSİN:
+        // setMeasurementForm({ weight: measurement.weight, shoulder: measurement.shoulder, ... });
+
+        console.log("Güncelleme moduna geçildi dayı:", measurement);
+    };
+    return (
+        <div style={styles.container}>
+            {/* ÜST BİLGİ ALANI */}
+            <div style={styles.header}>
+                <button onClick={() => navigate('/admin/dashboard')} style={styles.backBtn}>
+                    <ArrowLeft size={20} /> Geri Dön
+                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    <div style={styles.avatar}>
+                        {member.firstName?.charAt(0)}{member.lastName?.charAt(0)}
+                    </div>
+                    <div>
+                        <h1 style={{ margin: 0, color: 'white' }}>{member.firstName} {member.lastName}</h1>
+                        <span style={{ color: '#aaa' }}>{member.phoneNumber} | Paket: {member.packageName || "Paket Yok"}</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* SEKMELER (TABS) */}
+            <div style={styles.tabContainer}>
+                <button onClick={() => setActiveTab('measurements')} style={activeTab === 'measurements' ? styles.activeTab : styles.tab}>
+                    <Activity size={18} /> Ölçüler
+                </button>
+                <button onClick={() => setActiveTab('diet')} style={activeTab === 'diet' ? styles.activeTab : styles.tab}>
+                    <Clock size={18} /> Beslenme
+                </button>
+                <button onClick={() => setActiveTab('workout')} style={activeTab === 'workout' ? styles.activeTab : styles.tab}>
+                    <Dumbbell size={18} /> Antrenman
+                </button>
+            </div>
+
+            {/* İÇERİK ALANI */}
+            <div style={styles.content}>
+
+                {/* --- ÖLÇÜLER SEKMESİ --- */}
+                {activeTab === 'measurements' && (
+                    <div style={styles.grid}>
+                        {/* Ölçü Ekleme Formu */}
+                        <div style={styles.card}>
+                            <h3 style={{ color: '#4ade80', marginTop: 0 }}>Yeni Ölçü Gir</h3>
+                            <form onSubmit={handleAddMeasurement} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                <input style={styles.input} type="number" step="0.1" placeholder="Kilo (kg)" value={measForm.weight} onChange={e => setMeasForm({ ...measForm, weight: e.target.value })} required />
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <input style={styles.input} type="number" step="0.1" placeholder="Omuz" value={measForm.shoulder} onChange={e => setMeasForm({ ...measForm, shoulder: e.target.value })} required />
+                                    <input style={styles.input} type="number" step="0.1" placeholder="Göğüs" value={measForm.chest} onChange={e => setMeasForm({ ...measForm, chest: e.target.value })} required />
+                                </div>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <input style={styles.input} type="number" step="0.1" placeholder="Sağ Kol" value={measForm.rightArm} onChange={e => setMeasForm({ ...measForm, rightArm: e.target.value })} required />
+                                    <input style={styles.input} type="number" step="0.1" placeholder="Sol Kol" value={measForm.leftArm} onChange={e => setMeasForm({ ...measForm, leftArm: e.target.value })} required />
+                                </div>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <input style={styles.input} type="number" step="0.1" placeholder="Bel" value={measForm.waist} onChange={e => setMeasForm({ ...measForm, waist: e.target.value })} required />
+                                    <input style={styles.input} type="number" step="0.1" placeholder="Boyun" value={measForm.neck} onChange={e => setMeasForm({ ...measForm, neck: e.target.value })} required />
+                                </div>
+                                <button type="submit" style={{ ...styles.submitBtn, backgroundColor: '#4ade80', color: 'black' }}><Plus size={18} /> KAYDET</button>
+                            </form>
+                        </div>
+
+                        {/* ÖLÇÜ GEÇMİŞİ TABLOSU - ADMİN TARAFI */}
+                        <div style={styles.card}>
+                            <h3 style={{ color: 'white', marginTop: 0 }}>Ölçü Geçmişi</h3>
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                    <thead>
+                                        <tr style={{ color: '#888', fontSize: '0.8rem', borderBottom: '1px solid #333' }}>
+                                            <th style={{ padding: '12px' }}>Tarih</th>
+                                            <th style={{ padding: '12px' }}>Kilo</th>
+                                            <th style={{ padding: '12px' }}>Omuz</th>
+                                            <th style={{ padding: '12px' }}>Göğüs</th>
+                                            <th style={{ padding: '12px' }}>Kol (S/S)</th>
+                                            <th style={{ padding: '12px' }}>Bel</th>
+                                            <th style={{ padding: '12px' }}>Boyun</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {measurements.map((m, i) => (
+                                            <tr key={i} style={{ borderBottom: '1px solid #222' }}>
+                                                <td style={{ padding: '12px' }}>
+                                                    {/* DİKKAT: C#'tan RecordDate (Büyük R) olarak gelebilir, kontrol et */}
+                                                    {m.recordDate || m.RecordDate ? new Date(m.recordDate || m.RecordDate).toLocaleDateString() : "Tarih Yok"}
+                                                </td>
+                                                <td style={{ padding: '12px' }}>{m.weight} {getDiff(m.weight, measurements[i + 1]?.weight, true)}</td>
+                                                <td style={{ padding: '12px' }}>{m.shoulder} {getDiff(m.shoulder, measurements[i + 1]?.shoulder)}</td>
+                                                <td style={{ padding: '12px' }}>{m.chest} {getDiff(m.chest, measurements[i + 1]?.chest)}</td>
+                                                <td style={{ padding: '12px' }}>{m.rightArm} / {m.leftArm}</td>
+                                                <td style={{ padding: '12px' }}>{m.waist} {getDiff(m.waist, measurements[i + 1]?.waist, true)}</td>
+                                                <td style={{ padding: '12px' }}>{m.neck} {getDiff(m.neck, measurements[i + 1]?.neck)}</td>
+                                                {/* Ölçü döngüsünün içindeki <tr> etiketinin içine şu <td>'yi ekle */}
+                                                <td>
+                                                    <button onClick={() => handleDeleteMeasurement(m.id || m.Id)} style={{ backgroundColor: '#d90429', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', marginRight: '5px' }}>
+                                                        SİL
+                                                    </button>
+                                                    <button onClick={() => handleEditMeasurement(m)} style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>
+                                                        GÜNCELLE
+                                                    </button>
+                                                    <button onClick={() => {
+                                                        console.log("SİLİNECEK OBJE:", m); // BUNU EKLE, KONSOLA BAK AMQ İÇİNDE id Mİ VAR Id Mİ?
+                                                        handleDeleteMeasurement(m.id || m.Id);
+                                                    }}>
+                                                    deneme
+                                                </button>
+                                            </td>
+                                            </tr>
+                                        ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    </div>
+                )}
+
+            {/* --- BESLENME SEKMESİ --- */}
+            {activeTab === 'diet' && (
+                <div style={styles.grid}>
+                    {/* Öğün Ekleme Formu */}
+                    <div style={styles.card}>
+                        <h3 style={{ color: '#d90429', marginTop: 0 }}>Yeni Öğün Ekle</h3>
+                        <form onSubmit={handleAddDiet} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <input style={styles.input} type="time" value={dietForm.time} onChange={e => setDietForm({ ...dietForm, time: e.target.value })} required />
+                            <input style={styles.input} type="text" placeholder="Öğün Adı (örn: Kahvaltı)" value={dietForm.mealName} onChange={e => setDietForm({ ...dietForm, mealName: e.target.value })} required />
+                            <textarea style={{ ...styles.input, height: '100px' }} placeholder="İçerik (örn: 4 Yumurta, 100gr Yulaf)" value={dietForm.content} onChange={e => setDietForm({ ...dietForm, content: e.target.value })} required />
+                            <button type="submit" style={{ ...styles.submitBtn, backgroundColor: '#d90429', color: 'white' }}><Plus size={18} /> LİSTEYE EKLE</button>
+                        </form>
+                    </div>
+
+                    {/* Güncel Diyet Listesi */}
+                    <div style={styles.card}>
+                        <h3 style={{ color: 'white', marginTop: 0 }}>Beslenme Programı</h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {diets.map((d, i) => (
+                                <div key={i} style={{ backgroundColor: '#1a1a1a', padding: '15px', borderRadius: '5px', borderLeft: '3px solid #d90429', display: 'flex', gap: '15px', alignItems: 'center' }}>
+                                    <div style={{ fontWeight: 'bold', color: '#d90429', fontSize: '1.2rem' }}>{d.time}</div>
+                                    <div>
+                                        <div style={{ fontWeight: 'bold' }}>{d.mealName}</div>
+                                        <div style={{ color: '#aaa', fontSize: '0.9rem' }}>{d.content}</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- ANTRENMAN SEKMESİ (Hazırlık) --- */}
+            {activeTab === 'workout' && (
+                <div style={styles.grid}>
+
+                    {/* SOL TARAF: HAREKET VE GÜN EKLEME FORMU */}
+                    <div style={styles.card}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                            <h3 style={{ color: '#3b82f6', margin: 0 }}>Programa Hareketi Daya</h3>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const nextDay = workoutProgram.days.length + 1;
+                                    const newDays = [...workoutProgram.days, { title: `${nextDay}. Gün`, exercises: [] }];
+                                    setWorkoutProgram({ days: newDays });
+                                    setSelectedDayIndex(newDays.length - 1); // Yeni eklenen günü otomatik seç
+                                    setExpandedDayIndex(newDays.length - 1); // Sağda da o günü aç
+                                }}
+                                style={{ backgroundColor: '#1a1a1a', color: '#3b82f6', border: '1px solid #3b82f6', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}
+                            >
+                                + YENİ GÜN EKLE
+                            </button>
+                        </div>
+
+                        {workoutProgram.days.length === 0 ? (
+                            <div style={{ color: '#aaa', textAlign: 'center', padding: '20px' }}>Önce yukarıdan 'Yeni Gün Ekle' butonuna bas dayıoğlu!</div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+                                {/* 1. Hangi Güne Ekliyoruz? */}
+                                <select style={{ ...styles.input, borderLeft: '3px solid #3b82f6' }} value={selectedDayIndex} onChange={e => setSelectedDayIndex(Number(e.target.value))}>
+                                    {workoutProgram.days.map((d, i) => <option key={i} value={i}>{d.title} 'e Ekle</option>)}
+                                </select>
+
+                                {/* 2. Bölge Seçimi */}
+                                <select style={styles.input} value={selectedMuscleGroup} onChange={e => { setSelectedMuscleGroup(e.target.value); setCurrentAddForm({ ...currentAddForm, exerciseId: '' }); }}>
+                                    <option value="">Bölge Seç...</option>
+                                    {[...new Set(allExercises.map(ex => ex.muscleGroup))].map((mg, i) => <option key={i} value={mg}>{mg}</option>)}
+                                </select>
+
+                                {/* 3. Hareket Seçimi */}
+                                <select style={{ ...styles.input, opacity: selectedMuscleGroup ? 1 : 0.5 }} value={currentAddForm.exerciseId} onChange={e => setCurrentAddForm({ ...currentAddForm, exerciseId: e.target.value })} disabled={!selectedMuscleGroup}>
+                                    <option value="">Hareket Seç...</option>
+                                    {allExercises.filter(ex => ex.muscleGroup === selectedMuscleGroup).map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)}
+                                </select>
+
+                                {/* DİNAMİK ALANLAR (KARDİYO VS AĞIRLIK) */}
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    {selectedMuscleGroup === "Kardiyo" ? (
+                                        <>
+                                            <input style={styles.input} type="number" placeholder="Süre(dk)" value={currentAddForm.duration} onChange={e => setCurrentAddForm({ ...currentAddForm, duration: e.target.value })} />
+                                            <input style={styles.input} type="number" step="0.1" placeholder="Hız" value={currentAddForm.speed} onChange={e => setCurrentAddForm({ ...currentAddForm, speed: e.target.value })} />
+                                            <input style={styles.input} type="number" step="0.1" placeholder="Eğim" value={currentAddForm.incline} onChange={e => setCurrentAddForm({ ...currentAddForm, incline: e.target.value })} />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <input style={styles.input} type="number" placeholder="Set" value={currentAddForm.sets} onChange={e => setCurrentAddForm({ ...currentAddForm, sets: e.target.value })} />
+                                            <input style={styles.input} type="text" placeholder="Tekrar" value={currentAddForm.reps} onChange={e => setCurrentAddForm({ ...currentAddForm, reps: e.target.value })} />
+                                            <input style={styles.input} type="number" placeholder="Dinlenme(sn)" value={currentAddForm.restTime} onChange={e => setCurrentAddForm({ ...currentAddForm, restTime: e.target.value })} />
+                                        </>
+                                    )}
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (!currentAddForm.exerciseId) return alert("Hareketi seçsene amq!");
+                                        const newDays = [...workoutProgram.days];
+                                        newDays[selectedDayIndex].exercises.push({ ...currentAddForm });
+                                        setWorkoutProgram({ days: newDays });
+                                        setCurrentAddForm({ exerciseId: '', sets: '', reps: '', restTime: '', duration: '', speed: '', incline: '' });
+                                        setExpandedDayIndex(selectedDayIndex); // Eklediği günü sağda otomatik aç
+                                    }}
+                                    style={{ ...styles.submitBtn, backgroundColor: '#3b82f6', color: 'white', marginTop: '10px' }}
+                                >Hareketi Listeye At</button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* SAĞ TARAF: GÜNCEL PROGRAM LİSTESİ VE KAYDET BUTONU */}
+                    <div style={styles.card}>
+                        <h3 style={{ color: 'white', marginTop: 0 }}>Oluşturulan Program</h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+                            {workoutProgram.days.length === 0 && <div style={{ color: '#666' }}>Program henüz boş.</div>}
+
+                            {/* GÜNLERİ AKORDEON (DROPDOWN) ŞEKLİNDE LİSTELE */}
+                            {workoutProgram.days.map((day, dayIdx) => (
+                                <div key={dayIdx} style={{ backgroundColor: '#1a1a1a', borderRadius: '5px', overflow: 'hidden' }}>
+
+                                    {/* AKORDEON BAŞLIĞI (Tıklayınca açılır/kapanır) */}
+                                    <div
+                                        onClick={() => setExpandedDayIndex(expandedDayIndex === dayIdx ? null : dayIdx)}
+                                        style={{ padding: '15px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#111', borderLeft: '3px solid #3b82f6' }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <span style={{ color: '#3b82f6', fontWeight: 'bold' }}>{expandedDayIndex === dayIdx ? '▼' : '▶'}</span>
+                                            <input
+                                                style={{ backgroundColor: 'transparent', border: 'none', color: 'white', fontWeight: 'bold', fontSize: '1.1rem', outline: 'none' }}
+                                                value={day.title}
+                                                onClick={e => e.stopPropagation()} // Tıklayınca akordeon kapanmasın
+                                                onChange={(e) => {
+                                                    const newDays = [...workoutProgram.days];
+                                                    newDays[dayIdx].title = e.target.value;
+                                                    setWorkoutProgram({ days: newDays });
+                                                }}
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={e => {
+                                                e.stopPropagation();
+                                                const newDays = workoutProgram.days.filter((_, i) => i !== dayIdx);
+                                                setWorkoutProgram({ days: newDays });
+                                                if (selectedDayIndex === dayIdx) setSelectedDayIndex(0);
+                                            }}
+                                            style={{ color: '#d90429', background: 'transparent', border: '1px solid #d90429', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                        >Günü Sil</button>
+                                    </div>
+
+                                    {/* AKORDEON İÇERİĞİ (HAREKETLER) */}
+                                    {expandedDayIndex === dayIdx && (
+                                        <div style={{ padding: '10px', borderTop: '1px solid #222' }}>
+                                            {day.exercises.length === 0 && <div style={{ color: '#666', fontSize: '0.9rem', padding: '5px' }}>Bu güne henüz hareket eklenmedi.</div>}
+
+                                            {day.exercises.map((ex, exIdx) => {
+                                                const isCardio = allExercises.find(a => a.id == parseInt(ex.exerciseId))?.muscleGroup === "Kardiyo";
+                                                return (
+                                                    <div key={exIdx} style={{ padding: '10px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <div>
+                                                            <div style={{ color: '#3b82f6', fontWeight: 'bold', fontSize: '1rem' }}>{allExercises.find(a => a.id == parseInt(ex.exerciseId))?.name}</div>
+                                                            {isCardio ? (
+                                                                <div style={{ color: '#aaa', fontSize: '0.8rem' }}>{ex.duration} dk | Hız: {ex.speed} | Eğim: {ex.incline}</div>
+                                                            ) : (
+                                                                <div style={{ color: '#aaa', fontSize: '0.8rem' }}>{ex.sets} Set x {ex.reps} Tekrar | Dinlenme: {ex.restTime} sn</div>
+                                                            )}
+                                                        </div>
+                                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                                            <button
+                                                                onClick={() => {
+                                                                    setCurrentAddForm(ex);
+                                                                    const muscle = allExercises.find(a => a.id == parseInt(ex.exerciseId))?.muscleGroup;
+                                                                    setSelectedMuscleGroup(muscle || "");
+                                                                    setSelectedDayIndex(dayIdx);
+                                                                    const newDays = [...workoutProgram.days];
+                                                                    newDays[dayIdx].exercises = newDays[dayIdx].exercises.filter((_, i) => i !== exIdx);
+                                                                    setWorkoutProgram({ days: newDays });
+                                                                }}
+                                                                style={{ color: '#f59e0b', background: 'none', border: 'none', cursor: 'pointer' }}
+                                                            >Düzenle</button>
+                                                            <button
+                                                                onClick={() => {
+                                                                    const newDays = [...workoutProgram.days];
+                                                                    newDays[dayIdx].exercises = newDays[dayIdx].exercises.filter((_, i) => i !== exIdx);
+                                                                    setWorkoutProgram({ days: newDays });
+                                                                }}
+                                                                style={{ color: '#d90429', background: 'none', border: 'none', cursor: 'pointer' }}
+                                                            >Sil</button>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* 400 HATASINI ÇÖZEN, JİLET GİBİ KAYDET BUTONU */}
+                        {workoutProgram.days.length > 0 && (
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        // DTO'nun beklediği STRING? formatına çeviriyoruz! Rakam gitmeyecek!
+                                        const payload = {
+                                            days: workoutProgram.days.map(d => ({
+                                                title: d.title,
+                                                exercises: d.exercises.map(e => ({
+                                                    exerciseId: parseInt(e.exerciseId) || 0,
+                                                    sets: parseInt(e.sets) || 0,
+                                                    reps: e.reps?.toString() || "",
+                                                    restTime: e.restTime?.toString() || "",
+                                                    duration: e.duration?.toString() || "",
+                                                    speed: e.speed?.toString() || "",
+                                                    incline: e.incline?.toString() || ""
+                                                }))
+                                            }))
+                                        };
+
+                                        await api.post(`/Admin/members/${id}/workout-program`, payload);
+                                        alert("Program aslanlar gibi SQL'e kazındı emmoğlu!");
+                                    } catch (err) {
+                                        alert("Kaydederken motor yaktık!");
+                                        console.error(err);
+                                    }
+                                }}
+                                style={{ width: '100%', padding: '15px', backgroundColor: 'transparent', color: '#3b82f6', border: '2px solid #3b82f6', borderRadius: '5px', fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', marginTop: '20px', transition: '0.2s' }}
+                            >
+                                TÜM PROGRAMI KAYDET
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
+
+        </div>
+        </div >
+    );
+};
+
+// Tasarım Jiletleri
+const styles = {
+    container: { minHeight: '100vh', backgroundColor: '#0a0a0a', color: 'white', padding: '30px' },
+    header: { display: 'flex', alignItems: 'center', gap: '30px', marginBottom: '30px', backgroundColor: '#111', padding: '20px', borderRadius: '10px', border: '1px solid #222' },
+    backBtn: { backgroundColor: 'transparent', color: '#aaa', border: '1px solid #333', padding: '8px 15px', borderRadius: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' },
+    avatar: { width: '60px', height: '60px', backgroundColor: '#d90429', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.5rem', fontWeight: 'bold' },
+    tabContainer: { display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '10px' },
+    tab: { backgroundColor: 'transparent', color: '#888', border: 'none', padding: '10px 20px', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: '0.2s' },
+    activeTab: { backgroundColor: '#1a1a1a', color: 'white', border: '1px solid #333', borderBottom: 'none', borderRadius: '8px 8px 0 0', padding: '10px 20px', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' },
+    content: { minHeight: '500px' },
+    grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' },
+    card: { backgroundColor: '#111', padding: '25px', borderRadius: '10px', border: '1px solid #222' },
+    input: { width: '100%', padding: '12px', backgroundColor: '#1a1a1a', border: '1px solid #333', color: 'white', borderRadius: '5px', outline: 'none', boxSizing: 'border-box' },
+    submitBtn: { padding: '12px', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', width: '100%' }
+};
+
+export default MemberDetail;
