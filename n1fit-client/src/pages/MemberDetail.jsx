@@ -4,18 +4,18 @@ import { ArrowLeft, Activity, Clock, Dumbbell, Plus } from 'lucide-react';
 import api from '../api/axiosConfig';
 
 const MemberDetail = () => {
-    const { id } = useParams(); 
+    const { id } = useParams();
     const navigate = useNavigate();
 
     const [member, setMember] = useState(null);
-    const [activeTab, setActiveTab] = useState('measurements'); 
+    const [activeTab, setActiveTab] = useState('measurements');
     const [workoutProgram, setWorkoutProgram] = useState({ name: "Haftalık Program", days: [] });
     const [selectedMuscleGroup, setSelectedMuscleGroup] = useState("");
     const [currentAddForm, setCurrentAddForm] = useState({ exerciseId: '', sets: '', reps: '', restTime: '', duration: '', speed: '', incline: '' });
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
     const [expandedDayIndex, setExpandedDayIndex] = useState(0);
 
-    
+
     // GÜNCELLEME MODU İÇİN STATELER
     const [editingDiet, setEditingDiet] = useState(null);
     const [editingMeasurement, setEditingMeasurement] = useState(null);
@@ -28,7 +28,7 @@ const MemberDetail = () => {
     const [measForm, setMeasForm] = useState({ weight: '', shoulder: '', chest: '', leftArm: '', rightArm: '', waist: '', neck: '' });
     const [dietForm, setDietForm] = useState({ mealName: '', time: '', content: '' });
     const [workoutForm, setWorkoutForm] = useState({ exerciseId: '', sets: '', reps: '' });
-    const [allExercises, setAllExercises] = useState([]); 
+    const [allExercises, setAllExercises] = useState([]);
 
     useEffect(() => {
         if (id) {
@@ -87,13 +87,13 @@ const MemberDetail = () => {
                 const targetId = editingMeasurement.id || editingMeasurement.Id;
                 await api.put(`/Admin/measurements/${targetId}`, measForm);
                 alert("Ölçüler aslanlar gibi güncellendi!");
-                setEditingMeasurement(null); 
+                setEditingMeasurement(null);
             } else {
                 await api.post(`/Admin/member/${id}/measurements`, measForm);
                 alert("Yeni ölçüler dükkana hayırlı olsun!");
             }
             setMeasForm({ weight: '', shoulder: '', chest: '', leftArm: '', rightArm: '', waist: '', neck: '' });
-            loadData(); 
+            loadData();
         } catch (err) { alert("Ölçü işleminde patladık dayı!"); }
     };
 
@@ -102,7 +102,7 @@ const MemberDetail = () => {
             try {
                 await api.delete(`/Admin/measurements/${measurementId}`);
                 alert("Ölçü buharlaştı!");
-                loadData(); 
+                loadData();
             } catch (err) { console.error("Ölçü silinirken motor yaktık", err); }
         }
     };
@@ -142,8 +142,33 @@ const MemberDetail = () => {
             try {
                 await api.delete(`/Admin/diet/${dietId}`);
                 alert("Diyet çöpe atıldı!");
-                loadData(); 
+                loadData();
             } catch (err) { console.error("Diyet silinirken patladık", err); }
+        }
+    };
+
+    const autoSaveWorkout = async (daysArray) => {
+        try {
+            const payload = {
+                days: daysArray.map(d => ({
+                    title: d.title,
+                    exercises: d.exercises.map(e => ({
+                        exerciseId: parseInt(e.exerciseId) || 0,
+                        sets: parseInt(e.sets) || 0,
+                        reps: e.reps?.toString() || "",
+                        restTime: e.restTime?.toString() || "",
+                        duration: e.duration?.toString() || "",
+                        speed: e.speed?.toString() || "",
+                        incline: e.incline?.toString() || ""
+                    }))
+                }))
+            };
+            // Makine arkadan sessizce mermiyi sıkar
+            await api.post(`/Admin/members/${id}/workout-program`, payload);
+            console.log("Program aslanlar gibi oto-kaydedildi!");
+        } catch (err) {
+            console.error(err);
+            alert("Oto-kayıt atarken motor yaktık dayı!");
         }
     };
 
@@ -217,7 +242,7 @@ const MemberDetail = () => {
                                     <input style={styles.input} type="number" step="0.1" placeholder="Bel" value={measForm.waist} onChange={e => setMeasForm({ ...measForm, waist: e.target.value })} required />
                                     <input style={styles.input} type="number" step="0.1" placeholder="Boyun" value={measForm.neck} onChange={e => setMeasForm({ ...measForm, neck: e.target.value })} required />
                                 </div>
-                                
+
                                 <button type="submit" style={{ ...styles.submitBtn, backgroundColor: editingMeasurement ? '#3b82f6' : '#4ade80', color: 'black' }}>
                                     <Plus size={18} /> {editingMeasurement ? "GÜNCELLEMEYİ BAS" : "KAYDET"}
                                 </button>
@@ -290,11 +315,11 @@ const MemberDetail = () => {
                                 <input style={styles.input} type="time" value={dietForm.time} onChange={e => setDietForm({ ...dietForm, time: e.target.value })} required />
                                 <input style={styles.input} type="text" placeholder="Öğün Adı (örn: Kahvaltı)" value={dietForm.mealName} onChange={e => setDietForm({ ...dietForm, mealName: e.target.value })} required />
                                 <textarea style={{ ...styles.input, height: '100px' }} placeholder="İçerik (örn: 4 Yumurta, 100gr Yulaf)" value={dietForm.content} onChange={e => setDietForm({ ...dietForm, content: e.target.value })} required />
-                                
+
                                 <button type="submit" style={{ ...styles.submitBtn, backgroundColor: editingDiet ? '#3b82f6' : '#d90429', color: 'white' }}>
                                     <Plus size={18} /> {editingDiet ? "GÜNCELLEMEYİ BAS" : "LİSTEYE EKLE"}
                                 </button>
-                                
+
                                 {editingDiet && (
                                     <button type="button" onClick={() => {
                                         setEditingDiet(null);
@@ -335,7 +360,7 @@ const MemberDetail = () => {
                     </div>
                 )}
 
-                {/* --- ANTRENMAN SEKMESİ (Aynen Bıraktım) --- */}
+                {/* --- ANTRENMAN SEKMESİ --- */}
                 {activeTab === 'workout' && (
                     <div style={styles.grid}>
 
@@ -349,8 +374,11 @@ const MemberDetail = () => {
                                         const nextDay = workoutProgram.days.length + 1;
                                         const newDays = [...workoutProgram.days, { title: `${nextDay}. Gün`, exercises: [] }];
                                         setWorkoutProgram({ days: newDays });
-                                        setSelectedDayIndex(newDays.length - 1); 
-                                        setExpandedDayIndex(newDays.length - 1); 
+                                        setSelectedDayIndex(newDays.length - 1);
+                                        setExpandedDayIndex(newDays.length - 1);
+
+                                        // OTO KAYIT ÇAK
+                                        autoSaveWorkout(newDays);
                                     }}
                                     style={{ backgroundColor: '#1a1a1a', color: '#3b82f6', border: '1px solid #3b82f6', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}
                                 >
@@ -401,7 +429,10 @@ const MemberDetail = () => {
                                             newDays[selectedDayIndex].exercises.push({ ...currentAddForm });
                                             setWorkoutProgram({ days: newDays });
                                             setCurrentAddForm({ exerciseId: '', sets: '', reps: '', restTime: '', duration: '', speed: '', incline: '' });
-                                            setExpandedDayIndex(selectedDayIndex); 
+                                            setExpandedDayIndex(selectedDayIndex);
+
+                                            // OTO KAYIT ÇAK
+                                            autoSaveWorkout(newDays);
                                         }}
                                         style={{ ...styles.submitBtn, backgroundColor: '#3b82f6', color: 'white', marginTop: '10px' }}
                                     >Hareketi Listeye At</button>
@@ -409,12 +440,12 @@ const MemberDetail = () => {
                             )}
                         </div>
 
-                        {/* SAĞ TARAF: GÜNCEL PROGRAM LİSTESİ VE KAYDET BUTONU */}
+                        {/* SAĞ TARAF: GÜNCEL PROGRAM LİSTESİ */}
                         <div style={styles.card}>
                             <h3 style={{ color: 'white', marginTop: 0 }}>Oluşturulan Program</h3>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
 
-                                {workoutProgram.days.length === 0 && <div style={{ color: '#666' }}>Program henüz boş.</div>}
+                                {workoutProgram.days.length === 0 && <div style={{ color: '#666' }}>Program henüz boş veya hepsi silindi. (Otomatik Kaydedildi)</div>}
 
                                 {workoutProgram.days.map((day, dayIdx) => (
                                     <div key={dayIdx} style={{ backgroundColor: '#1a1a1a', borderRadius: '5px', overflow: 'hidden' }}>
@@ -428,12 +459,14 @@ const MemberDetail = () => {
                                                 <input
                                                     style={{ backgroundColor: 'transparent', border: 'none', color: 'white', fontWeight: 'bold', fontSize: '1.1rem', outline: 'none' }}
                                                     value={day.title}
-                                                    onClick={e => e.stopPropagation()} 
+                                                    onClick={e => e.stopPropagation()}
                                                     onChange={(e) => {
                                                         const newDays = [...workoutProgram.days];
                                                         newDays[dayIdx].title = e.target.value;
                                                         setWorkoutProgram({ days: newDays });
                                                     }}
+                                                    // KLAVYEDEN ELİNİ ÇEKTİĞİ GİBİ KAYDETSİN (İsim değişirse spam atmaması için onBlur)
+                                                    onBlur={() => autoSaveWorkout(workoutProgram.days)}
                                                 />
                                             </div>
                                             <button
@@ -442,6 +475,9 @@ const MemberDetail = () => {
                                                     const newDays = workoutProgram.days.filter((_, i) => i !== dayIdx);
                                                     setWorkoutProgram({ days: newDays });
                                                     if (selectedDayIndex === dayIdx) setSelectedDayIndex(0);
+
+                                                    // OTO KAYIT ÇAK (Gün Silinince)
+                                                    autoSaveWorkout(newDays);
                                                 }}
                                                 style={{ color: '#d90429', background: 'transparent', border: '1px solid #d90429', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
                                             >Günü Sil</button>
@@ -473,6 +509,9 @@ const MemberDetail = () => {
                                                                         const newDays = [...workoutProgram.days];
                                                                         newDays[dayIdx].exercises = newDays[dayIdx].exercises.filter((_, i) => i !== exIdx);
                                                                         setWorkoutProgram({ days: newDays });
+
+                                                                        // Düzenlerken eskisi silindiği için anında kaydediyoruz
+                                                                        autoSaveWorkout(newDays);
                                                                     }}
                                                                     style={{ color: '#f59e0b', background: 'none', border: 'none', cursor: 'pointer' }}
                                                                 >Düzenle</button>
@@ -481,6 +520,9 @@ const MemberDetail = () => {
                                                                         const newDays = [...workoutProgram.days];
                                                                         newDays[dayIdx].exercises = newDays[dayIdx].exercises.filter((_, i) => i !== exIdx);
                                                                         setWorkoutProgram({ days: newDays });
+
+                                                                        // HAREKET SİLİNİNCE OTO KAYIT
+                                                                        autoSaveWorkout(newDays);
                                                                     }}
                                                                     style={{ color: '#d90429', background: 'none', border: 'none', cursor: 'pointer' }}
                                                                 >Sil</button>
@@ -493,38 +535,6 @@ const MemberDetail = () => {
                                     </div>
                                 ))}
                             </div>
-
-                            {workoutProgram.days.length > 0 && (
-                                <button
-                                    onClick={async () => {
-                                        try {
-                                            const payload = {
-                                                days: workoutProgram.days.map(d => ({
-                                                    title: d.title,
-                                                    exercises: d.exercises.map(e => ({
-                                                        exerciseId: parseInt(e.exerciseId) || 0,
-                                                        sets: parseInt(e.sets) || 0,
-                                                        reps: e.reps?.toString() || "",
-                                                        restTime: e.restTime?.toString() || "",
-                                                        duration: e.duration?.toString() || "",
-                                                        speed: e.speed?.toString() || "",
-                                                        incline: e.incline?.toString() || ""
-                                                    }))
-                                                }))
-                                            };
-
-                                            await api.post(`/Admin/members/${id}/workout-program`, payload);
-                                            alert("Program aslanlar gibi SQL'e kazındı emmoğlu!");
-                                        } catch (err) {
-                                            alert("Kaydederken motor yaktık!");
-                                            console.error(err);
-                                        }
-                                    }}
-                                    style={{ width: '100%', padding: '15px', backgroundColor: 'transparent', color: '#3b82f6', border: '2px solid #3b82f6', borderRadius: '5px', fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', marginTop: '20px', transition: '0.2s' }}
-                                >
-                                    TÜM PROGRAMI KAYDET
-                                </button>
-                            )}
                         </div>
                     </div>
                 )}

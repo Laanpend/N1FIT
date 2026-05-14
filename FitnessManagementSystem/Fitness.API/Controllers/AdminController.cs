@@ -274,11 +274,14 @@ namespace Fitness.API.Controllers
             return Ok(new { message = "Adamın süresi aslanlar gibi uzatıldı!" });
         }
         [HttpPost("members/{id}/pay-debt")]
-        public async Task<IActionResult> PayDebt(int id, [FromBody] decimal amount)
+        public async Task<IActionResult> PayDebt(int id, [FromBody] PayDebtDto dto)
         {
-            var success = await _adminService.PayDebtAsync(id, amount);
-            if (!success) return NotFound("Üye bulunamadı amq!");
-            return Ok(new { message = "Ödeme aslanlar gibi kasaya girdi!" });
+            // Artık çıplak rakam değil, kutunun içindeki Amount'u alıyoruz
+            var success = await _adminService.PayDebtAsync(id, dto.Amount);
+
+            if (!success) return NotFound("Üye bulunamadı!");
+
+            return Ok(new { message = "Ödeme Gerçekleştirildi!" });
         }
     }
 }

@@ -13,6 +13,7 @@ const MemberDashboard = () => {
     const [diets, setDiets] = useState([]);
     const [measurements, setMeasurements] = useState([]);
     const [expandedDay, setExpandedDay] = useState(null);
+    const [playingVideo, setPlayingVideo] = useState(null);
 
     useEffect(() => {
         // C# tarafında müşterinin sadece kendi bilgisini getiren bir uç yazman lazım dayıoğlu.
@@ -70,7 +71,7 @@ const MemberDashboard = () => {
     };
 
     // DİYET SİLME OPERASYONU
-    
+
 
     return (
         <div style={styles.container}>
@@ -150,9 +151,14 @@ const MemberDashboard = () => {
 
                             {/* GÜN BAŞLIĞI (Tıklayınca açılır kapanır dropdown) */}
                             <div
-                                onClick={() => setExpandedDay(expandedDay === dayIdx ? null : dayIdx)}
-                                style={{ padding: '18px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0a0a0a' }}
-                            >
+                                onClick={() => {
+                                    // Günü aç/kapat yapan orijinal kodun
+                                    setExpandedDay(expandedDay === dayIdx ? null : dayIdx);
+
+                                    // İŞTE VİDEOYU SIFIRLAYIP KAMERA GİBİ THUMBNAIL'E DÖNDÜREN SİGORTA BU AMQ!
+                                    setPlayingVideo(null);
+                                }}
+                                style={{ padding: '15px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#111', borderLeft: '3px solid #d90429' }}                            >
                                 <span style={{ fontWeight: 'bold', fontSize: '1.1rem', color: 'white' }}>
                                     {expandedDay === dayIdx ? '▼' : '▶'} {dayTitle}
                                 </span>
@@ -166,16 +172,35 @@ const MemberDashboard = () => {
                                         // Thumbnail hatasını çözen radar
                                         const videoId = ex.videoUrl?.split('v=')?.[1]?.split('&')?.[0];
                                         const thumbUrl = videoId
-                                            ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
+                                            ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
                                             : `https://placehold.co/300x200/111111/d90429.png?text=VIDEO+YOK`;
+                                        const uniqueKey = `${dayIdx}-${i}`;
 
                                         return (
                                             <div key={i} style={{ backgroundColor: '#0a0a0a', borderRadius: '10px', overflow: 'hidden', border: '1px solid #222' }}>
-                                                <div style={{ position: 'relative', height: '160px', cursor: 'pointer' }} onClick={() => window.open(ex.videoUrl, '_blank')}>
-                                                    <img src={thumbUrl} alt={ex.name} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.7 }} />
-                                                    <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
-                                                        <PlayCircle size={45} color="#d90429" />
-                                                    </div>
+                                                {/* İŞTE VİDEO VE THUMBNAIL'İN YER DEĞİŞTİRDİĞİ O JİLET KISIM */}
+                                                <div style={{ position: 'relative', height: '160px', backgroundColor: '#000' }}>
+                                                    {playingVideo === uniqueKey && videoId ? (
+                                                        <iframe
+                                                            width="100%"
+                                                            height="100%"
+                                                            src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
+                                                            title={ex.name}
+                                                            frameBorder="0"
+                                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                            allowFullScreen
+                                                        ></iframe>
+                                                    ) : (
+                                                        <img
+                                                            src={thumbUrl}
+                                                            alt={ex.name}
+                                                            // Fotoğrafın saydamlığını kaldırdık, cam gibi png duracak. Sadece videosu varsa tıklanabilir olacak.
+                                                            style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: videoId ? 'pointer' : 'default' }}
+                                                            onClick={() => {
+                                                                if (videoId) setPlayingVideo(uniqueKey);
+                                                            }}
+                                                        />
+                                                    )}
                                                 </div>
                                                 <div style={{ padding: '12px' }}>
                                                     <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '5px' }}>{ex.name}</div>

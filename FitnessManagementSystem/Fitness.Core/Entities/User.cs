@@ -25,7 +25,6 @@ namespace Fitness.Core.Entities
         public DateTime? MembershipStartDate { get; set; } // Spora başladığı gün
 
         public int? PackageId { get; set; }       // Aldığı paketin ID'si
-        public virtual Package Package { get; set; }
         public decimal TotalDebt { get; set; }    // Paketin toplam fiyatı (Borcu)
         public decimal PaidAmount { get; set; }   // Peşin verdiği para
 

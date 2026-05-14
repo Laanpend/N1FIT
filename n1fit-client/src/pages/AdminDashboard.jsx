@@ -154,13 +154,20 @@ const AdminDashboard = () => {
     const handlePayDebt = async () => {
         if (!paymentAmount || paymentAmount <= 0) return alert("Ulan adam gibi rakam gir amq!");
         try {
-            // C#'a sadece decimal rakamı yolluyoruz
-            await api.post(`/Admin/members/${selectedMember.id}/pay-debt`, paymentAmount);
+            // PARAYI ÇIPLAK DEĞİL, KUTUYA KOYUP YOLLUYORUZ:
+            const payload = {
+                amount: parseFloat(paymentAmount)
+            };
+
+            await api.post(`/Admin/members/${selectedMember.id}/pay-debt`, payload);
+            
             alert("Borçtan düşüldü, kasa ferahladı emmoğlu!");
             setShowPayDebtModal(false);
             setPaymentAmount('');
-            fetchMembers(); // Tabloyu ve modal verisini tazele
+            fetchMembers(); // Tabloyu ve borcu ekranda anında tazele!
+            
         } catch (err) {
+            console.error("Ödeme hatası:", err);
             alert("Ödeme alınırken motor yaktık!");
         }
     };
@@ -180,6 +187,7 @@ const AdminDashboard = () => {
         // searchTerm undefined gelirse patlamasın diye (searchTerm || "") kalkanı ekledik
         const matchesName = name.toLowerCase().includes((searchTerm || "").toLowerCase());
 
+
         // YENİ: CYBORG BORÇ VE DURUM MOTORU (FROZEN VİTESİ EKLENDİ)
         let matchesStatus = true;
         if (statusFilter === 'Active') matchesStatus = isActive && !m.isFrozen;
@@ -194,8 +202,8 @@ const AdminDashboard = () => {
         return matchesName && matchesStatus && matchesDate;
     });
 
-    if (loading) return <div style={{ color: 'white', padding: '20px' }}>Yükleniyor dayıoğlu, bekle...</div>;
-
+    if (loading) return <div style={{ color: 'white', padding: '20px' }}>Yükleniyor...</div>;
+    const selectedMember = members.find(m => m.id === editingMemberId) || {};
     return (
         <div style={styles.container}>
             <div style={styles.main}>
@@ -323,17 +331,6 @@ const AdminDashboard = () => {
                                                     title={m.isFrozen ? "Üyeliği Çöz" : "Üyeliği Dondur"}
                                                 >
                                                     {m.isFrozen ? "Çöz" : "Dondur"}
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        setSelectedRenewMember(m);
-                                                        // Adamın mevcut paketi seçili gelsin diye formun içine basıyoruz
-                                                        setRenewForm({ packageId: m.packageId || '', paidAmount: '' });
-                                                        setShowRenewModal(true);
-                                                    }}
-                                                    style={{ backgroundColor: '#4ade80', color: 'black', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                                                >
-                                                    UZAT
                                                 </button>
                                             </div>
                                         </td>
