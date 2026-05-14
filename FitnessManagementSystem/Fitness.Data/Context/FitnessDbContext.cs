@@ -15,7 +15,6 @@ namespace Fitness.Data.Context
 
         public DbSet<User> Users { get; set; }
         public DbSet<Measurement> Measurements { get; set; }
-        public DbSet<Package> Packages { get; set; }
         public DbSet<Exercise> Exercises { get; set; }
         public DbSet<WorkoutProgram> WorkoutPrograms { get; set; }
 
