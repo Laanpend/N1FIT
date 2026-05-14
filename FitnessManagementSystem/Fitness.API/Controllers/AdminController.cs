@@ -107,6 +107,7 @@ namespace Fitness.API.Controllers
             return Ok(result);
         }
 
+
         [HttpPost("members/{id}/workout-program")]
         public async Task<IActionResult> SaveWorkoutProgram(int id, [FromBody] SaveWorkoutProgramDto dto)
         {
@@ -263,5 +264,21 @@ namespace Fitness.API.Controllers
             return Ok(new { message = "Ölçü aslanlar gibi güncellendi!" });
         }
 
+        [HttpPost("members/{id}/renew")]
+        public async Task<IActionResult> RenewMembership(int id, [FromBody] RenewDto dto)
+        {
+            var success = await _adminService.RenewMembershipAsync(id, dto.PackageId, dto.PaidAmount);
+
+            if (!success) return NotFound("Böyle bir üye yok amq!");
+
+            return Ok(new { message = "Adamın süresi aslanlar gibi uzatıldı!" });
+        }
+        [HttpPost("members/{id}/pay-debt")]
+        public async Task<IActionResult> PayDebt(int id, [FromBody] decimal amount)
+        {
+            var success = await _adminService.PayDebtAsync(id, amount);
+            if (!success) return NotFound("Üye bulunamadı amq!");
+            return Ok(new { message = "Ödeme aslanlar gibi kasaya girdi!" });
+        }
     }
 }

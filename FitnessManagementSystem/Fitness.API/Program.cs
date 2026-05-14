@@ -11,6 +11,7 @@ using System.Text;
 using Fitness.Service.Services;
 using Microsoft.OpenApi.Models;
 using Hangfire;
+using Fitness.Core.Entities;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<FitnessDbContext>(options =>
@@ -23,6 +24,9 @@ builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepositor
 builder.Services.AddAutoMapper(typeof(MapProfile));
 // Service Kaydý
 builder.Services.AddScoped(typeof(IService<>), typeof(Service<>));
+
+builder.Services.AddScoped<IGenericRepository<MembershipPackage>, GenericRepository<MembershipPackage>>();
+
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(opt =>
 {
@@ -46,6 +50,7 @@ builder.Services.AddScoped<IMeasurementService, MeasurementService>();
 builder.Services.AddScoped<IWorkoutService, WorkoutService>();
 builder.Services.AddScoped<JobService>();
 builder.Services.AddScoped<IMemberService, MemberService>();
+builder.Services.AddHostedService<Fitness.API.Workers.CleanupWorker>();
 
 
 builder.Services.AddHangfire(configuration => configuration

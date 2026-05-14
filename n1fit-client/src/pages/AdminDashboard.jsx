@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api/axiosConfig';
-import { Search, Calendar, LogOut, Plus, UserPlus, Dumbbell, CreditCard, Edit, Trash2 } from 'lucide-react';
+import { Search, Calendar, LogOut, Plus, UserPlus, Dumbbell, CreditCard, Edit, Trash2, Radius } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const AdminDashboard = () => {
@@ -12,6 +12,14 @@ const AdminDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [packages, setPackages] = useState([]);
 
+    //BORÇ ÖDEME STATELERİ
+    const [showPayDebtModal, setShowPayDebtModal] = useState(false);
+    const [paymentAmount, setPaymentAmount] = useState('');
+
+    // ÜYELİK UZATMA STATELERİ
+    const [showRenewModal, setShowRenewModal] = useState(false);
+    const [selectedRenewMember, setSelectedRenewMember] = useState(null);
+    const [renewForm, setRenewForm] = useState({ packageId: '', paidAmount: '' });
 
     // Modal ve Form Stateleri
     const [showModal, setShowModal] = useState(false);
@@ -44,6 +52,7 @@ const AdminDashboard = () => {
             navigate('/login');
         }
         fetchMembers();
+        fetchPackages();
         api.get('/Admin/packages').then(res => setPackages(res.data)).catch(err => console.log("Paketler patladı", err));
     }, []);
 
@@ -57,6 +66,12 @@ const AdminDashboard = () => {
         } finally {
             setLoading(false);
         }
+    };
+    const fetchPackages = async () => {
+        try {
+            const res = await api.get('/Admin/packages');
+            setPackages(res.data || []);
+        } catch (err) { console.error("Paketler çekilirken motor yaktı", err); }
     };
 
     // YENİ: Yeni Üye Ekle Butonuna Basınca Formu Temizle
@@ -136,6 +151,19 @@ const AdminDashboard = () => {
             alert("Kayıt/Güncelleme patladı, C# tarafına giden verilere bak.");
         }
     };
+    const handlePayDebt = async () => {
+        if (!paymentAmount || paymentAmount <= 0) return alert("Ulan adam gibi rakam gir amq!");
+        try {
+            // C#'a sadece decimal rakamı yolluyoruz
+            await api.post(`/Admin/members/${selectedMember.id}/pay-debt`, paymentAmount);
+            alert("Borçtan düşüldü, kasa ferahladı emmoğlu!");
+            setShowPayDebtModal(false);
+            setPaymentAmount('');
+            fetchMembers(); // Tabloyu ve modal verisini tazele
+        } catch (err) {
+            alert("Ödeme alınırken motor yaktık!");
+        }
+    };
 
     const filteredMembers = (members || []).filter(m => {
         if (!m) return false;
@@ -162,7 +190,7 @@ const AdminDashboard = () => {
 
         const matchesDate = (!dateRange.start || (startDate && startDate >= new Date(dateRange.start))) &&
             (!dateRange.end || (endDate && endDate <= new Date(dateRange.end)));
-            
+
         return matchesName && matchesStatus && matchesDate;
     });
 
@@ -296,6 +324,17 @@ const AdminDashboard = () => {
                                                 >
                                                     {m.isFrozen ? "Çöz" : "Dondur"}
                                                 </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedRenewMember(m);
+                                                        // Adamın mevcut paketi seçili gelsin diye formun içine basıyoruz
+                                                        setRenewForm({ packageId: m.packageId || '', paidAmount: '' });
+                                                        setShowRenewModal(true);
+                                                    }}
+                                                    style={{ backgroundColor: '#4ade80', color: 'black', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                                                >
+                                                    UZAT
+                                                </button>
                                             </div>
                                         </td>
 
@@ -309,7 +348,7 @@ const AdminDashboard = () => {
                     </table>
                 </div>
             </div>
-            {/* MODAL EKRANI */}
+            {/* YENİ ÜYE / ÜYE DÜZENLE MODALI */}
             {showModal && (
                 <div style={styles.modalBackdrop}>
                     <div style={styles.modalContent}>
@@ -317,43 +356,188 @@ const AdminDashboard = () => {
                             {editingMemberId ? 'Üye Bilgilerini Düzenle' : 'Yeni Üye Kaydı'}
                         </h3>
                         <form onSubmit={handleSaveMember} style={styles.modalForm}>
+                            
+                            {/* ORTAK ALANLAR: Ad, Soyad, Telefon, E-Posta, Şifre */}
                             <div style={{ display: 'flex', gap: '10px' }}>
                                 <input style={{ ...styles.modalInput, flex: 1 }} placeholder="Ad" value={formData.firstName} onChange={e => setFormData({ ...formData, firstName: e.target.value })} required />
                                 <input style={{ ...styles.modalInput, flex: 1 }} placeholder="Soyad" value={formData.lastName} onChange={e => setFormData({ ...formData, lastName: e.target.value })} required />
                             </div>
                             <input style={styles.modalInput} placeholder="Telefon (05...)" type="tel" value={formData.phoneNumber} onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })} required />
                             <input style={styles.modalInput} placeholder="E-Posta" type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} required />
-
-                            {/* Şifreyi sadece yeni üyeyse zorunlu yap, düzenlemede boş geçilebilir */}
                             <input style={styles.modalInput} placeholder={editingMemberId ? "Şifre (Değişmeyecekse boş bırak)" : "Şifre"} type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} required={!editingMemberId} />
 
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                                <div style={{ flex: 1 }}>
-                                    <label style={styles.smallLabel}>Başlama Tarihi:</label>
-                                    <input style={{ ...styles.modalInput, width: '100%', boxSizing: 'border-box' }} type="date" value={formData.membershipStartDate} onChange={e => setFormData({ ...formData, membershipStartDate: e.target.value })} required />
-                                </div>
-                                <div style={{ flex: 1 }}>
-                                    <label style={styles.smallLabel}>Bitiş Tarihi:</label>
-                                    <input style={{ ...styles.modalInput, width: '100%', boxSizing: 'border-box' }} type="date" value={formData.subscriptionEndDate} onChange={e => setFormData({ ...formData, subscriptionEndDate: e.target.value })} required />
-                                </div>
-                            </div>
+                            {/* ==================================================== */}
+                            {/* SADECE "YENİ ÜYE" İÇİN GÖRÜNECEK ALANLAR */}
+                            {/* ==================================================== */}
+                            {!editingMemberId && (
+                                <>
+                                    <div style={{ display: 'flex', gap: '10px' }}>
+                                        <div style={{ flex: 1 }}>
+                                            <label style={styles.smallLabel}>Başlama Tarihi:</label>
+                                            <input style={{ ...styles.modalInput, width: '100%', boxSizing: 'border-box' }} type="date" value={formData.membershipStartDate} onChange={e => setFormData({ ...formData, membershipStartDate: e.target.value })} required />
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <label style={styles.smallLabel}>Bitiş Tarihi:</label>
+                                            <input style={{ ...styles.modalInput, width: '100%', boxSizing: 'border-box' }} type="date" value={formData.subscriptionEndDate} onChange={e => setFormData({ ...formData, subscriptionEndDate: e.target.value })} required />
+                                        </div>
+                                    </div>
 
-                            <label style={styles.smallLabel}>Üyelik Paketi Seç:</label>
-                            <select style={styles.modalInput} value={formData.packageId} onChange={e => setFormData({ ...formData, packageId: e.target.value })} required>
-                                <option value="">Paket Seç Dayı...</option>
-                                {packages.map(p => (
-                                    <option key={p.id} value={p.id}>{p.name} - {p.price} TL</option>
-                                ))}
-                            </select>
+                                    <label style={styles.smallLabel}>Üyelik Paketi Seç:</label>
+                                    <select style={styles.modalInput} value={formData.packageId} onChange={e => setFormData({ ...formData, packageId: e.target.value })} required>
+                                        <option value="">Paket Seç Dayı...</option>
+                                        {packages.map(p => (
+                                            <option key={p.id || p.Id} value={p.id || p.Id}>{p.name || p.Name} - {p.price || p.Price} TL</option>
+                                        ))}
+                                    </select>
 
-                            <label style={styles.smallLabel}>Alınan Peşinat (TL):</label>
-                            <input style={styles.modalInput} placeholder="Örn: 1500" type="number" value={formData.paidAmount} onChange={e => setFormData({ ...formData, paidAmount: e.target.value })} required />
+                                    <label style={styles.smallLabel}>Alınan Peşinat (TL):</label>
+                                    <input style={styles.modalInput} placeholder="Örn: 1500" type="number" value={formData.paidAmount} onChange={e => setFormData({ ...formData, paidAmount: e.target.value })} required />
+                                </>
+                            )}
 
+                            {/* ANA KAYDET/GÜNCELLE BUTONU (Her iki durumda da var) */}
                             <div style={styles.modalActions}>
                                 <button type="button" onClick={() => setShowModal(false)} style={styles.cancelBtn}>İPTAL</button>
-                                <button type="submit" style={styles.saveBtn}>{editingMemberId ? 'GÜNCELLE' : 'KAYDET VE BORÇLANDIR'}</button>
+                                <button type="submit" style={styles.saveBtn}>{editingMemberId ? 'BİLGİLERİ GÜNCELLE' : 'KAYDET VE BORÇLANDIR'}</button>
                             </div>
                         </form>
+
+                        {/* ==================================================== */}
+                        {/* SADECE "ÜYE DÜZENLE" İÇİN ÇIKAN EKSTRA BUTONLAR */}
+                        {/* ==================================================== */}
+                        {editingMemberId && (
+                            <div style={{ marginTop: '25px', paddingTop: '20px', borderTop: '1px solid #333', display: 'flex', gap: '10px' }}>
+                                
+                                <button 
+                                    type="button" 
+                                    onClick={() => {
+                                        // Uzatma modalına gerekli veriyi basıyoruz
+                                        setSelectedRenewMember(selectedMember); 
+                                        setShowRenewModal(true);
+                                        // İstersen ana modalı kapatabilirsin: setShowModal(false);
+                                    }}
+                                    style={{ ...styles.submitBtn, backgroundColor: '#3b82f6', color: 'white', flex: 1, padding: '10px', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer' }}
+                                >
+                                    + ÜYELİĞİ UZAT
+                                </button>
+
+                                {/* Eğer adamın borcu varsa Borç Öde butonu da çıksın */}
+                                {selectedMember && ((selectedMember.totalDebt || 0) - (selectedMember.paidAmount || 0)) > 0 && (
+                                    <button 
+                                        type="button"
+                                        onClick={() => setShowPayDebtModal(true)}
+                                        style={{ ...styles.submitBtn, backgroundColor: '#d90429', color: 'white', flex: 1, padding: '10px', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer' }}
+                                    >
+                                        $ BORÇ ÖDE
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+            {/* ÜYELİK UZATMA MODALI (ANA SAYFA İÇİN) */}
+            {showRenewModal && selectedRenewMember && (
+                <div style={styles.modalOverlay}>
+                    <div style={styles.modalContent}>
+                        <h2 style={{ marginTop: 0, color: '#4ade80', borderBottom: '1px solid #333', paddingBottom: '10px' }}>
+                            {selectedRenewMember.firstName} İçin Üyelik Yenile
+                        </h2>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
+                            <div>
+                                <label style={styles.modalLabel}>Uzatılacak Paket</label>
+                                {/* DİKKAT: Elle girmek yok, aslanlar gibi paket seçiyoruz! */}
+                                <select
+                                    style={styles.input}
+                                    value={renewForm.packageId}
+                                    onChange={e => setRenewForm({ ...renewForm, packageId: e.target.value })}
+                                >
+                                    <option value="" style={{ backgroundColor: '#1a1a1a', color: 'white' }}>Paket Seçiniz...</option>
+                                    {packages.map(p => (
+                                        // DİKKAT: Option içine backgroundColor verdik ki beyaza dönmesin!
+                                        <option key={p.id || p.Id} value={p.id || p.Id} style={{ backgroundColor: '#1a1a1a', color: 'white' }}>
+                                            {p.name || p.Name} - {p.price || p.Price} ₺ ({p.durationMonths || p.DurationMonths} Ay)
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label style={styles.modalLabel}>Şu An Peşin Ödenen (TL)</label>
+                                <input
+                                    style={styles.input, { border: '1px solid #edf2f4', borderRadius: 'flex', backgroundColor: '#1a1a1a', color: 'white' }}
+                                    type="number"
+                                    step="0.1"
+                                    placeholder="Kasaya giren nakit"
+                                    value={renewForm.paidAmount}
+                                    onChange={e => setRenewForm({ ...renewForm, paidAmount: e.target.value })}
+                                />
+                                <span style={{ fontSize: '0.8rem', color: '#888', marginTop: '5px', display: 'block' }}>
+                                    Not: Paketin fiyatı adamın eski borcunun üstüne otomatik eklenecektir.
+                                </span>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '15px', marginTop: '20px' }}>
+                                <button
+                                    onClick={async () => {
+                                        if (!renewForm.packageId) return alert("Paket Seçiniz!");
+                                        try {
+                                            const payload = {
+                                                packageId: parseInt(renewForm.packageId),
+                                                paidAmount: parseFloat(renewForm.paidAmount) || 0
+                                            };
+                                            await api.post(`/Admin/members/${selectedRenewMember.id}/renew`, payload);
+                                            alert("Üyelik Süresi Uzatıldı!");
+                                            setShowRenewModal(false);
+                                            fetchMembers();
+                                        } catch (err) {
+                                            alert("Yenilerken motor yaktık dayı!");
+                                        }
+                                    }}
+                                    // YENİ ONAYLA BUTONU JİLETİ
+                                    style={{ backgroundColor: '#4ade80', color: '#0a0a0a', border: 'none', padding: '12px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: '900', flex: 1, textTransform: 'uppercase', fontSize: '0.9rem', boxShadow: '0 4px 10px rgba(74, 222, 128, 0.2)' }}
+                                >
+                                    Onayla ve Uzat
+                                </button>
+
+                                <button
+                                    onClick={() => setShowRenewModal(false)}
+                                    // YENİ İPTAL BUTONU JİLETİ
+                                    style={{ backgroundColor: 'transparent', color: '#d90429', border: '2px solid #d90429', padding: '12px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: '900', flex: 1, textTransform: 'uppercase', fontSize: '0.9rem' }}
+                                >
+                                    İptal Et
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {showPayDebtModal && (
+                <div style={styles.modalOverlay}>
+                    <div style={styles.modalContent}>
+                        <h3 style={{ color: '#d90429', marginTop: 0 }}>Borç Tahsilatı</h3>
+                        <p style={{ color: '#aaa', fontSize: '0.9rem' }}>
+                            Kalan Borç: {selectedMember.totalDebt - selectedMember.paidAmount} TL
+                        </p>
+                        <div style={{ marginTop: '15px' }}>
+                            <label style={styles.modalLabel}>Ödenen Miktar (TL)</label>
+                            <input
+                                style={styles.input}
+                                type="number"
+                                value={paymentAmount}
+                                onChange={e => setPaymentAmount(e.target.value)}
+                                placeholder="Kasaya giren nakiti yaz..."
+                            />
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                            <button onClick={handlePayDebt} style={{ ...styles.submitBtn, backgroundColor: '#d90429', color: 'white', flex: 1 }}>
+                                ÖDEMEYİ AL
+                            </button>
+                            <button onClick={() => setShowPayDebtModal(false)} style={{ ...styles.submitBtn, backgroundColor: '#444', color: 'white', flex: 1 }}>
+                                İPTAL
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -386,7 +570,27 @@ const styles = {
     smallLabel: { color: '#aaa', fontSize: '0.85rem', marginBottom: '3px', display: 'block' },
     modalActions: { display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' },
     saveBtn: { backgroundColor: '#d90429', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' },
-    cancelBtn: { backgroundColor: '#333', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer' }
+    cancelBtn: { backgroundColor: '#333', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer' },
+    // MODALI GÖBEĞE ZIMBALAYAN CSS MOTORU
+    modalOverlay: {
+        position: 'fixed',
+        top: 0, left: 0, right: 0, bottom: 0, // Dört köşeden gerdiriyoruz amq
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 9999 // En üstte kalması için mermi
+    },
+    modalContent: {
+        backgroundColor: '#111',
+        padding: '30px',
+        borderRadius: '16px', // Senin istediğin o fiyakalı radius!
+        border: '1px solid #333',
+        width: '90%',
+        maxWidth: '420px',
+        boxShadow: '0 20px 50px rgba(0,0,0,0.8)' // Derinlik efekti
+    },
+    modalLabel: { color: '#888', fontSize: '0.85rem', marginBottom: '8px', display: 'block', textTransform: 'uppercase', fontWeight: 'bold' }
 };
 
 export default AdminDashboard;

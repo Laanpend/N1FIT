@@ -14,6 +14,7 @@ const MemberDetail = () => {
     const [currentAddForm, setCurrentAddForm] = useState({ exerciseId: '', sets: '', reps: '', restTime: '', duration: '', speed: '', incline: '' });
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
     const [expandedDayIndex, setExpandedDayIndex] = useState(0);
+
     
     // GÜNCELLEME MODU İÇİN STATELER
     const [editingDiet, setEditingDiet] = useState(null);
@@ -145,6 +146,7 @@ const MemberDetail = () => {
             } catch (err) { console.error("Diyet silinirken patladık", err); }
         }
     };
+
 
 
     if (!member) return <div style={{ color: 'white', padding: '50px' }}>Canavar aranıyor...</div>;

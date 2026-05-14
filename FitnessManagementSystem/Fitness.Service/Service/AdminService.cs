@@ -451,6 +451,52 @@ namespace Fitness.Service.Service
             }
         }
 
+        public async Task<bool> RenewMembershipAsync(int userId, int packageId, decimal paidAmount)
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null) return false;
+
+            // 1. Gelen PaketId ile paketin kendisini SQL'den bul
+            var package = await _packageRepository.GetByIdAsync(packageId);
+            if (package == null) throw new Exception("Böyle bir paket yok amq!");
+
+            // 2. Bitiş tarihini paketteki ay (DurationMonths) kadar uzat!
+            if (user.SubscriptionEndDate.HasValue && user.SubscriptionEndDate.Value > DateTime.Now)
+            {
+                user.SubscriptionEndDate = user.SubscriptionEndDate.Value.AddMonths(package.DurationMonths);
+            }
+            else
+            {
+                user.SubscriptionEndDate = DateTime.Now.AddMonths(package.DurationMonths);
+            }
+
+            // 3. Adamın Paketini Güncelle
+            user.PackageId = package.Id;
+
+            // 4. MUHASEBE ZEKASI: Mevcut borcun üstüne paketin fiyatını BİNDİR!
+            user.TotalDebt += package.Price;
+            user.PaidAmount += paidAmount; // Kasaya giren parayı ekle
+
+            // Adam pasiften/dondurulmuşluktan dönüyorsa buzu çöz
+            user.IsFrozen = false;
+
+            _userRepository.Update(user);
+            await _unitOfWork.CommitAsync();
+
+            return true;
+        }
+        public async Task<bool> PayDebtAsync(int userId, decimal amount)
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null) return false;
+
+            // SADECE ÖDENEN MİKTARI ARTIRIYORUZ, BORÇ KENDİSİ SABİT KALIYOR
+            user.PaidAmount += amount;
+
+            _userRepository.Update(user);
+            await _unitOfWork.CommitAsync();
+            return true;
+        }
 
 
     }

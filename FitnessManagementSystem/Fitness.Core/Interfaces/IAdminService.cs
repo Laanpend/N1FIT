@@ -44,5 +44,7 @@ namespace Fitness.Core.Interfaces
         Task ToggleFreezeAsync(int id);
         Task<bool> DeleteMeasurementAsync(int id);
         Task UpdateMeasurementAsync(int id, MeasurementDto dto);
+        Task<bool> RenewMembershipAsync(int userId, int packageId, decimal paidAmount);
+        Task<bool> PayDebtAsync(int userId, decimal amount);
     }
 }
