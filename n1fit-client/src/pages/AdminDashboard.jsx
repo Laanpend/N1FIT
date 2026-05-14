@@ -140,23 +140,29 @@ const AdminDashboard = () => {
     const filteredMembers = (members || []).filter(m => {
         if (!m) return false;
         const today = new Date();
+        const startDate = m.membershipStartDate ? new Date(m.membershipStartDate) : null;
         const endDate = m.subscriptionEndDate ? new Date(m.subscriptionEndDate) : null;
+
         const isActive = endDate ? endDate >= today : false;
-        const kalanBorc = (m.totalDebt || 0) - (m.paidAmount || 0);
+
+        // Adam fazla para verdiyse eksiye düşmesin diye Math.max ile 0'a sabitliyoruz
+        const kalanBorc = Math.max(0, (m.totalDebt || 0) - (m.paidAmount || 0));
 
         const name = m.fullName || `${m.firstName || ""} ${m.lastName || ""}`.trim();
-        const matchesName = name.toLowerCase().includes(searchTerm.toLowerCase());
+        // searchTerm undefined gelirse patlamasın diye (searchTerm || "") kalkanı ekledik
+        const matchesName = name.toLowerCase().includes((searchTerm || "").toLowerCase());
 
-        // YENİ: BORÇ FİLTRESİ MOTORU
+        // YENİ: CYBORG BORÇ VE DURUM MOTORU (FROZEN VİTESİ EKLENDİ)
         let matchesStatus = true;
-        if (statusFilter === 'Active') matchesStatus = isActive;
-        else if (statusFilter === 'Passive') matchesStatus = !isActive;
+        if (statusFilter === 'Active') matchesStatus = isActive && !m.isFrozen;
+        else if (statusFilter === 'Passive') matchesStatus = !isActive && !m.isFrozen;
+        else if (statusFilter === 'Frozen') matchesStatus = m.isFrozen === true;
         else if (statusFilter === 'InDebt') matchesStatus = kalanBorc > 0;
-        else if (statusFilter === 'Clean') matchesStatus = kalanBorc <= 0;
+        else if (statusFilter === 'Clean') matchesStatus = kalanBorc === 0;
 
-        const matchesDate = (!dateRange.start || (endDate && endDate >= new Date(dateRange.start))) &&
+        const matchesDate = (!dateRange.start || (startDate && startDate >= new Date(dateRange.start))) &&
             (!dateRange.end || (endDate && endDate <= new Date(dateRange.end)));
-
+            
         return matchesName && matchesStatus && matchesDate;
     });
 
@@ -182,11 +188,11 @@ const AdminDashboard = () => {
                     </div>
                     <select onChange={(e) => setStatusFilter(e.target.value)} style={styles.select}>
                         <option value="All">Tüm Liste</option>
-                        <option value="Active">Aktifler (Süresi Var)</option>
-                        <option value="Passive">Pasifler (Süresi Bitmiş)</option>
-                        <option value="InDebt">Borçlular (Sıkıştırılacaklar)</option>
-                        <option value="Clean">Temiz (Ödeyen Krallar)</option>
-                        <option value="Frozen">Dondurulmuşlar (Buzdolabı)</option>
+                        <option value="Active">Aktifler</option>
+                        <option value="Passive">Pasifler</option>
+                        <option value="InDebt">Borçlular</option>
+                        <option value="Clean">Cari Temiz</option>
+                        <option value="Frozen">Dondurulmuşlar</option>
                     </select>
                     <div style={styles.dateBox}>
                         <Calendar size={18} color="#d90429" />
@@ -252,7 +258,10 @@ const AdminDashboard = () => {
                                             {kalanBorc > 0 ? (
                                                 <span style={{ color: '#d90429' }}>{kalanBorc} TL Borçlu</span>
                                             ) : (
-                                                <span style={{ color: '#4ade80' }}>Temiz</span>
+                                                /* İŞTE SENİN VİZYONUN: Adam aktifse Temiz yaz, süresi bittiyse Üyelik Bitti yaz amq! */
+                                                <span style={{ color: isActive ? '#4ade80' : '#888' }}>
+                                                    {isActive ? 'Temiz' : 'Üyelik Bitti'}
+                                                </span>
                                             )}
                                         </td>
                                         <td>
