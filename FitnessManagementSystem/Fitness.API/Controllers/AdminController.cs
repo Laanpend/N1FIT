@@ -256,5 +256,12 @@ namespace Fitness.API.Controllers
             return Ok(new { message = "Ölçü tarihe gömüldü." });
         }
 
+        [HttpPut("measurements/{id}")]
+        public async Task<IActionResult> UpdateMeasurement(int id, [FromBody] MeasurementDto dto)
+        {
+            await _adminService.UpdateMeasurementAsync(id, dto);
+            return Ok(new { message = "Ölçü aslanlar gibi güncellendi!" });
+        }
+
     }
 }

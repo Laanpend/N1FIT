@@ -433,6 +433,24 @@ namespace Fitness.Service.Service
             return true;
         }
 
+        public async Task UpdateMeasurementAsync(int id, MeasurementDto dto)
+        {
+            var measurement = await _measurementRepository.GetByIdAsync(id);
+            if (measurement != null)
+            {
+                measurement.Weight = dto.Weight;
+                measurement.Shoulder = dto.Shoulder;
+                measurement.Chest = dto.Chest;
+                measurement.LeftArm = dto.LeftArm;
+                measurement.RightArm = dto.RightArm;
+                measurement.Waist = dto.Waist;
+                measurement.Neck = dto.Neck;
+
+                _measurementRepository.Update(measurement);
+                await _unitOfWork.CommitAsync();
+            }
+        }
+
 
 
     }

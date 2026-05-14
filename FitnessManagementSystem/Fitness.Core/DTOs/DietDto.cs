@@ -10,6 +10,7 @@ namespace Fitness.Core.DTOs
     {
         public class DietDto
         {
+            public int Id { get; set; }
             public string MealName { get; set; }
             public string Time { get; set; }
             public string Content { get; set; }

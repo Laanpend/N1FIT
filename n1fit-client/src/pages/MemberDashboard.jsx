@@ -190,9 +190,9 @@ const MemberDashboard = () => {
                                                         ) : (
                                                             // EĞER SET YOKSA BU KESİN KARDİYODUR AMQ! (Süre, Hız, Eğim basıyoruz)
                                                             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                                                                {ex.duration && <span>Süre: <b style={{ color: '#3b82f6' }}>{ex.duration} dk</b></span>}
-                                                                {ex.speed && <span>Hız: <b style={{ color: '#3b82f6' }}>{ex.speed}</b></span>}
-                                                                {ex.incline && <span>Eğim: <b style={{ color: '#3b82f6' }}>{ex.incline}</b></span>}
+                                                                {ex.duration && <span>Süre: <b style={{ color: '#4ade80' }}>{ex.duration} dk</b></span>}
+                                                                {ex.speed && <span>Hız: <b style={{ color: '#4ade80' }}>{ex.speed}</b></span>}
+                                                                {ex.incline && <span>Eğim: <b style={{ color: '#4ade80' }}>{ex.incline}</b></span>}
                                                             </div>
                                                         )}
 

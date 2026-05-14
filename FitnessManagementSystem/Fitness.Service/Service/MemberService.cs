@@ -93,7 +93,11 @@ namespace Fitness.Service.Service
                 Sets = x.Sets,
                 Reps = x.Reps,
                 VideoUrl = x.Exercise.VideoUrl,
-                DayTitle = x.WorkoutDay.Title
+                DayTitle = x.WorkoutDay.Title,
+                Duration = x.Duration,
+                Speed = x.Speed,
+                Incline = x.Incline,
+                RestTime = x.RestTime
             })
             .AsNoTracking()
             .ToListAsync();
@@ -107,7 +111,7 @@ namespace Fitness.Service.Service
                 SubscriptionEndDate = user.SubscriptionEndDate,
                 IsFrozen = user.IsFrozen,
                 DaysLeft = daysLeft,
-                Diets = diets.Select(d => new DietDto { MealName = d.MealName, Time = d.Time, Content = d.Content }).ToList(),
+                Diets = diets.Select(d => new DietDto { Id = d.Id, MealName = d.MealName, Time = d.Time, Content = d.Content }).ToList(),
                 PackagePrice = packagePrice,
                 TotalDebt = kalanBorc > 0 ? kalanBorc : 0,
                 // Doldurduğumuz kaslı idmanı buraya çaktık
