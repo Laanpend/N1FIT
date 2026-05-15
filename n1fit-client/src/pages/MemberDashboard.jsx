@@ -2,10 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PlayCircle, Calendar, Clock, AlertTriangle, Snowflake, LogOut, Dumbbell, Activity } from 'lucide-react';
 import api from '../api/axiosConfig';
+import Navbar from '../pages/Navbar';
 
 const MemberDashboard = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
+
+    const [activeTab, setActiveTab] = useState('home');
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [memberData, setMemberData] = useState(null);
 
     // Müşterinin tüm bilgilerini tutacağımız state
     const [profile, setProfile] = useState(null);
@@ -18,7 +23,12 @@ const MemberDashboard = () => {
     useEffect(() => {
         // C# tarafında müşterinin sadece kendi bilgisini getiren bir uç yazman lazım dayıoğlu.
         // Şimdilik temsili bir endpoint atıyorum, sen bunu kendi C# ucuna göre düzeltirsin.
-        fetchMyData();
+        const token = localStorage.getItem('n1fit_token');
+        if (token) {
+            setIsLoggedIn(true);
+            // Burada istersen API'den adamın bilgilerini çek
+            fetchMyData();
+        }
     }, []);
 
     const fetchMyData = async () => {
@@ -44,7 +54,8 @@ const MemberDashboard = () => {
 
     const handleLogout = () => {
         localStorage.removeItem('n1fit_token');
-        navigate('/login');
+        setIsLoggedIn(false);
+        setActiveTab('home');
     };
 
     // YouTube Thumbnail Ayıklama Motoru
@@ -76,13 +87,37 @@ const MemberDashboard = () => {
     return (
         <div style={styles.container}>
             {/* ÜST MENÜ */}
-            <nav style={styles.navbar}>
-                <div style={styles.logo}>N1<span style={{ color: '#d90429' }}>FIT</span></div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                    <span style={{ color: 'white', fontWeight: 'bold' }}>Hoş geldin, {profile?.firstName}!</span>
-                    <button onClick={handleLogout} style={styles.logoutBtn}><LogOut size={18} /> Çıkış</button>
-                </div>
-            </nav>
+            <div style={{ backgroundColor: '#050505', minHeight: '100vh', color: 'white' }}>
+            <Navbar 
+                activeTab={activeTab} 
+                setActiveTab={setActiveTab} 
+                isLoggedIn={isLoggedIn} 
+                onLogout={handleLogout} 
+            />
+
+            <div style={{ padding: '20px' }}>
+                {/* --- SEKMELERE GÖRE İÇERİK --- */}
+                
+                {activeTab === 'home' && (
+                    <div style={styles.landingContainer}>
+                        {/* BURASI GİRİŞ YAPMAYANIN GÖRECEĞİ VİTRİN */}
+                        <h1 style={styles.heroTitle}>DÜZCE'NİN EN SERT SALONU: N1FIT</h1>
+                        <div style={styles.sliderMock}>
+                            {/* Buraya bir Slider bileşeni veya fiyakalı salon fotoları gelecek amq */}
+                            <img src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=2070" style={styles.sliderImg} />
+                        </div>
+                        <div style={styles.infoSection}>
+                            <h3>Neden Biz?</h3>
+                            <p>Hardcore antrenman, profesyonel ekipman ve jilet gibi diyet listeleri...</p>
+                        </div>
+                    </div>
+                )}
+
+                {isLoggedIn && activeTab === 'workout' && <WorkoutTab />}
+                {isLoggedIn && activeTab === 'diet' && <DietTab />}
+                {isLoggedIn && activeTab === 'measure' && <MeasurementTab />}
+            </div>
+        </div>
 
             <div style={styles.main}>
                 {/* 1. KISIM: ÜYELİK BİLGİLERİ (SENİN İSTEDİĞİN YER) */}
@@ -316,7 +351,12 @@ const styles = {
     thumbnailWrapper: { position: 'relative', cursor: 'pointer', height: '180px', backgroundColor: 'black' },
     thumbnail: { width: '100%', height: '100%', objectFit: 'cover', opacity: 0.7, transition: '0.3s' },
     playIcon: { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', opacity: 0.8 },
-    dietRow: { display: 'flex', alignItems: 'center', gap: '20px', backgroundColor: '#1a1a1a', padding: '15px', borderRadius: '8px', borderLeft: '4px solid #d90429' }
+    dietRow: { display: 'flex', alignItems: 'center', gap: '20px', backgroundColor: '#1a1a1a', padding: '15px', borderRadius: '8px', borderLeft: '4px solid #d90429' },
+    landingContainer: { textAlign: 'center', marginTop: '50px' },
+    heroTitle: { fontSize: '3rem', fontWeight: '900', color: '#fff', textTransform: 'uppercase' },
+    sliderMock: { width: '80%', margin: '40px auto', borderRadius: '15px', overflow: 'hidden', boxShadow: '0 0 30px rgba(217, 4, 41, 0.2)' },
+    sliderImg: { width: '100%', height: '500px', objectFit: 'cover' },
+    infoSection: { marginTop: '40px', color: '#aaa' }
 };
 
 export default MemberDashboard;
