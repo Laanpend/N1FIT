@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PlayCircle, Calendar, Clock, AlertTriangle, Snowflake, LogOut, Dumbbell, Activity } from 'lucide-react';
 import api from '../api/axiosConfig';
-import Navbar from '../pages/Navbar';
+import Navbar from '../components/Navbar';
+import WorkoutTab from '../components/WorkoutTab';
+import DietTab from '../components/DietTab';
+import MeasurementTab from '../components/MeasurementTab';
+import MembershipTab from '../components/MembershipTab';
 
 const MemberDashboard = () => {
     const navigate = useNavigate();
@@ -112,224 +116,16 @@ const MemberDashboard = () => {
                         </div>
                     </div>
                 )}
-
+                {isLoggedIn && activeTab === 'membership' && <MembershipTab />}
                 {isLoggedIn && activeTab === 'workout' && <WorkoutTab />}
                 {isLoggedIn && activeTab === 'diet' && <DietTab />}
                 {isLoggedIn && activeTab === 'measure' && <MeasurementTab />}
             </div>
         </div>
+    </div>
+            
 
-            <div style={styles.main}>
-                {/* 1. KISIM: ÜYELİK BİLGİLERİ (SENİN İSTEDİĞİN YER) */}
-                <div style={{ ...styles.card, border: profile?.isFrozen ? '2px solid #3b82f6' : '1px solid #333' }}>
-                    <h2 style={{ marginTop: 0, color: profile?.isFrozen ? '#3b82f6' : 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        {profile?.isFrozen ? <Snowflake /> : <Calendar />}
-                        Üyelik Durumun
-                    </h2>
-
-                    {profile?.isFrozen && (
-                        <div style={styles.frozenAlert}>
-                            <AlertTriangle size={20} />
-                            DİKKAT: Üyeliğin şu an dondurulmuş durumda. Günlerin eksilmiyor, salon kullanımın kapalıdır.
-                        </div>
-                    )}
-
-                    {/* ÜYELİK KARTI KISMI - FİYAT, BORÇ VE TEMİZ TARİHLER */}
-                    <div style={styles.infoGrid}>
-                        <div style={styles.infoBox}>
-                            <span style={styles.infoLabel}>Mevcut Paket</span>
-                            <span style={styles.infoValue}>{profile?.packageName || "Paket Yok"}</span>
-
-                            {/* Fiyat ve Borç Zımbırtısı */}
-                            <div style={{ marginTop: '5px', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                                {profile?.packagePrice > 0 && (
-                                    <span style={{ color: '#4ade80' }}>{profile.packagePrice} ₺</span>
-                                )}
-                                {Number(profile?.totalDebt) > 0 ? (
-                                    <span style={{ color: '#d90429', marginLeft: '12px' }}>
-                                        BORÇ: {profile.totalDebt} ₺
-                                    </span>
-                                ) : null}
-                            </div>
-                        </div>
-                        <div style={styles.infoBox}>
-                            <span style={styles.infoLabel}>Başlangıç Tarihi</span>
-                            {/* Tıraşladığımız tarihi basıyoruz */}
-                            <span style={styles.infoValue}>{formatDate(profile?.membershipStartDate)}</span>
-                        </div>
-                        <div style={styles.infoBox}>
-                            <span style={styles.infoLabel}>Bitiş Tarihi</span>
-                            <span style={styles.infoValue}>{formatDate(profile?.subscriptionEndDate)}</span>
-                        </div>
-                        <div style={{ ...styles.infoBox, backgroundColor: profile?.daysLeft < 10 ? 'rgba(217, 4, 41, 0.2)' : 'rgba(74, 222, 128, 0.2)' }}>
-                            <span style={styles.infoLabel}>Kalan Süre</span>
-                            <span style={{ ...styles.infoValue, color: profile?.daysLeft < 10 ? '#d90429' : '#4ade80', fontSize: '1.5rem' }}>
-                                {profile?.isFrozen ? "DONDURULDU" : `${profile?.daysLeft} GÜN`}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 2. KISIM: ANTRENMAN PROGRAMI (THUMBNAILLI VİDEOLAR) */}
-                {/* MemberDashboard.jsx - AKORDEONLU ANTRENMAN PLANI */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                    {/* Önce hareketleri gün isimlerine göre grupluyoruz (Matrix'i çözdük amq) */}
-                    {Object.entries(
-                        workouts.reduce((acc, ex) => {
-                            const day = ex.dayTitle || "Genel Program";
-                            if (!acc[day]) acc[day] = [];
-                            acc[day].push(ex);
-                            return acc;
-                        }, {})
-                    ).map(([dayTitle, exercises], dayIdx) => (
-                        <div key={dayIdx} style={{ backgroundColor: '#111', borderRadius: '8px', overflow: 'hidden', borderLeft: '4px solid #d90429' }}>
-
-                            {/* GÜN BAŞLIĞI (Tıklayınca açılır kapanır dropdown) */}
-                            <div
-                                onClick={() => {
-                                    // Günü aç/kapat yapan orijinal kodun
-                                    setExpandedDay(expandedDay === dayIdx ? null : dayIdx);
-
-                                    // İŞTE VİDEOYU SIFIRLAYIP KAMERA GİBİ THUMBNAIL'E DÖNDÜREN SİGORTA BU AMQ!
-                                    setPlayingVideo(null);
-                                }}
-                                style={{ padding: '15px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#111', borderLeft: '3px solid #d90429' }}                            >
-                                <span style={{ fontWeight: 'bold', fontSize: '1.1rem', color: 'white' }}>
-                                    {expandedDay === dayIdx ? '▼' : '▶'} {dayTitle}
-                                </span>
-                                <span style={{ color: '#666', fontSize: '0.8rem' }}>{exercises.length} Hareket</span>
-                            </div>
-
-                            {/* HAREKETLER (VİDEOLU VE CAFCAFLI) */}
-                            {expandedDay === dayIdx && (
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '15px', padding: '15px', backgroundColor: '#161616' }}>
-                                    {exercises.map((ex, i) => {
-                                        // Thumbnail hatasını çözen radar
-                                        const videoId = ex.videoUrl?.split('v=')?.[1]?.split('&')?.[0];
-                                        const thumbUrl = videoId
-                                            ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
-                                            : `https://placehold.co/300x200/111111/d90429.png?text=VIDEO+YOK`;
-                                        const uniqueKey = `${dayIdx}-${i}`;
-
-                                        return (
-                                            <div key={i} style={{ backgroundColor: '#0a0a0a', borderRadius: '10px', overflow: 'hidden', border: '1px solid #222' }}>
-                                                {/* İŞTE VİDEO VE THUMBNAIL'İN YER DEĞİŞTİRDİĞİ O JİLET KISIM */}
-                                                <div style={{ position: 'relative', height: '160px', backgroundColor: '#000' }}>
-                                                    {playingVideo === uniqueKey && videoId ? (
-                                                        <iframe
-                                                            width="100%"
-                                                            height="100%"
-                                                            src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
-                                                            title={ex.name}
-                                                            frameBorder="0"
-                                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                            allowFullScreen
-                                                        ></iframe>
-                                                    ) : (
-                                                        <img
-                                                            src={thumbUrl}
-                                                            alt={ex.name}
-                                                            // Fotoğrafın saydamlığını kaldırdık, cam gibi png duracak. Sadece videosu varsa tıklanabilir olacak.
-                                                            style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: videoId ? 'pointer' : 'default' }}
-                                                            onClick={() => {
-                                                                if (videoId) setPlayingVideo(uniqueKey);
-                                                            }}
-                                                        />
-                                                    )}
-                                                </div>
-                                                <div style={{ padding: '12px' }}>
-                                                    <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '5px' }}>{ex.name}</div>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', fontSize: '0.85rem' }}>
-
-                                                        {/* EĞER SET 0'DAN BÜYÜKSE BU BİR AĞIRLIK İDMANIDIR */}
-                                                        {ex.sets > 0 ? (
-                                                            <>
-                                                                <span>Set: <b style={{ color: '#4ade80' }}>{ex.sets}</b></span>
-                                                                <span>Tekrar: <b style={{ color: '#4ade80' }}>{ex.reps}</b></span>
-                                                            </>
-                                                        ) : (
-                                                            // EĞER SET YOKSA BU KESİN KARDİYODUR AMQ! (Süre, Hız, Eğim basıyoruz)
-                                                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                                                                {ex.duration && <span>Süre: <b style={{ color: '#4ade80' }}>{ex.duration} dk</b></span>}
-                                                                {ex.speed && <span>Hız: <b style={{ color: '#4ade80' }}>{ex.speed}</b></span>}
-                                                                {ex.incline && <span>Eğim: <b style={{ color: '#4ade80' }}>{ex.incline}</b></span>}
-                                                            </div>
-                                                        )}
-
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    ))}
-                </div>
-
-                {/* 3. KISIM: BESLENME PROGRAMI */}
-                <div style={styles.card}>
-                    <h2 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: '10px' }}><Clock color="#d90429" /> Beslenme Programım</h2>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {diets.map((diet, i) => (
-                            <div key={i} style={styles.dietRow}>
-                                <div style={{ fontWeight: 'bold', color: '#d90429', minWidth: '80px' }}>{diet.time}</div>
-                                <div style={{ flex: 1 }}>
-                                    <h4 style={{ margin: '0 0 5px 0' }}>{diet.mealName}</h4>
-                                    <span style={{ color: '#aaa', fontSize: '0.9rem' }}>{diet.content}</span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-            </div>
-            {/* 4. KISIM: GELİŞİM TAKİBİ (ÖLÇÜLER) */}
-            <div style={styles.card}>
-                <h2 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <Activity color="#4ade80" /> Gelişim Tablosu
-                </h2>
-
-                <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '600px' }}>
-                        <thead>
-                            <tr style={{ backgroundColor: '#1a1a1a', color: '#888', textTransform: 'uppercase', fontSize: '0.8rem' }}>
-                                <th style={{ padding: '12px' }}>Tarih</th>
-                                <th style={{ padding: '12px' }}>Kilo</th>
-                                <th style={{ padding: '12px' }}>Omuz</th>
-                                <th style={{ padding: '12px' }}>Göğüs</th>
-                                <th style={{ padding: '12px' }}>Kol (Sağ/Sol)</th>
-                                <th style={{ padding: '12px' }}>Bel</th>
-                                <th style={{ padding: '12px' }}>Boyun</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {measurements.map((m, i) => (
-                                <tr key={i} style={{ borderBottom: '1px solid #222', backgroundColor: i === 0 ? 'rgba(74, 222, 128, 0.05)' : 'transparent' }}>
-                                    <td style={{ padding: '12px', fontWeight: i === 0 ? 'bold' : 'normal', color: i === 0 ? '#4ade80' : 'white' }}>
-                                        {m.recordDate || m.RecordDate ? new Date(m.recordDate || m.RecordDate).toLocaleDateString() : "Tarih Yok"}
-                                    </td>
-                                    <td style={{ padding: '12px' }}>{m.weight} {getDiff(m.weight, measurements[i + 1]?.weight, true)}</td>
-                                    <td style={{ padding: '12px' }}>{m.shoulder} {getDiff(m.shoulder, measurements[i + 1]?.shoulder)}</td>
-                                    <td style={{ padding: '12px' }}>{m.chest} {getDiff(m.chest, measurements[i + 1]?.chest)}</td>
-                                    <td style={{ padding: '12px' }}>
-                                        Sağ: {m.rightArm} {getDiff(m.rightArm, measurements[i + 1]?.rightArm)} <br />
-                                        Sol: {m.leftArm} {getDiff(m.leftArm, measurements[i + 1]?.leftArm)}
-                                    </td>
-                                    <td style={{ padding: '12px' }}>{m.waist} {getDiff(m.waist, measurements[i + 1]?.waist, true)}</td>
-                                    <td style={{ padding: '12px' }}>{m.neck} {getDiff(m.neck, measurements[i + 1]?.neck)}</td>
-                                </tr>
-                            ))}
-                            {measurements.length === 0 && (
-                                <tr>
-                                    <td colSpan="7" style={{ padding: '20px', textAlign: 'center', color: '#666' }}>Henüz ölçü girilmemiş dayıoğlu, basmaya devam!</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+              
     );
 };
 

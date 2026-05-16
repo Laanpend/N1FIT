@@ -7,7 +7,7 @@ const Navbar = ({ activeTab, setActiveTab, isLoggedIn, onLogout }) => {
     return (
         <nav style={styles.nav}>
             <div style={styles.logo} onClick={() => setActiveTab('home')}>N1FIT</div>
-            
+
             <div style={styles.menu}>
                 {/* Herkesin görebileceği ana sayfa linki */}
                 <span onClick={() => setActiveTab('home')} style={activeTab === 'home' ? styles.activeLink : styles.link}>ANA SAYFA</span>
@@ -15,6 +15,7 @@ const Navbar = ({ activeTab, setActiveTab, isLoggedIn, onLogout }) => {
                 {/* SADECE LOGIN YAPILINCA GELECEK MÜHİMMATLAR */}
                 {isLoggedIn && (
                     <>
+                        <span onClick={() => setActiveTab('membership')} style={activeTab === 'membership' ? styles.activeLink : styles.link}>ÜYELİK</span>
                         <span onClick={() => setActiveTab('workout')} style={activeTab === 'workout' ? styles.activeLink : styles.link}>ANTRENMAN</span>
                         <span onClick={() => setActiveTab('diet')} style={activeTab === 'diet' ? styles.activeLink : styles.link}>BESLENME</span>
                         <span onClick={() => setActiveTab('measure')} style={activeTab === 'measure' ? styles.activeLink : styles.link}>ÖLÇÜLERİM</span>

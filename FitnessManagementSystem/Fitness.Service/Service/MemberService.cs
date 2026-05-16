@@ -131,5 +131,93 @@ namespace Fitness.Service.Service
                 }).ToList()
             };
         }
+        // --- ANTRENMAN MOTORU ---
+        public async Task<object> GetMyWorkoutAsync(int userId)
+        {
+            // Veriyi çekerken hareketin adını ve videosunu da paketliyoruz (JOIN amq)!
+            var exercises = await _workoutDayExerciseRepository
+                .Where(x => x.WorkoutDay.WorkoutProgram.UserId == userId && x.WorkoutDay.WorkoutProgram.IsActive == true)
+                .Select(x => new
+                {
+                    DayId = x.WorkoutDay.Id,
+                    DayTitle = x.WorkoutDay.Title,
+                    ExerciseId = x.ExerciseId,
+                    Name = x.Exercise.Name,          // AHA! İsim geldi
+                    VideoUrl = x.Exercise.VideoUrl,  // AHA! Video geldi
+                    MuscleGroup = x.Exercise.MuscleGroup,
+                    Sets = x.Sets,
+                    Reps = x.Reps,
+                    RestTime = x.RestTime,
+                    Duration = x.Duration,
+                    Speed = x.Speed,
+                    Incline = x.Incline
+                })
+                .AsNoTracking()
+                .ToListAsync();
+
+            // JSON formatına eziyoruz
+            var days = exercises
+                .GroupBy(x => new { x.DayId, x.DayTitle })
+                .Select(g => new
+                {
+                    title = g.Key.DayTitle,
+                    exercises = g.Select(ex => new
+                    {
+                        exerciseId = ex.ExerciseId,
+                        name = ex.Name,             // React artık bunu direkt okuyacak
+                        videoUrl = ex.VideoUrl,     // Videoyu da buradan çekecek
+                        muscleGroup = ex.MuscleGroup,
+                        sets = ex.Sets,
+                        reps = ex.Reps,
+                        restTime = ex.RestTime,
+                        duration = ex.Duration,
+                        speed = ex.Speed,
+                        incline = ex.Incline
+                    }).ToList()
+                }).ToList();
+
+            return new { days = days };
+        }
+
+        // --- BESLENME MOTORU ---
+        public async Task<object> GetMyDietAsync(int userId)
+        {
+            var diets = await _dietRepository
+                .Where(x => x.UserId == userId)
+                .OrderBy(x => x.Time)
+                .AsNoTracking()
+                .ToListAsync();
+
+            // React'a yollarken küçük harfle yolluyoruz ki JSON'da patlamasın
+            var meals = diets.Select(d => new
+            {
+                mealName = d.MealName,
+                time = d.Time,
+                content = d.Content // Senin veritabanında liste değil, dümdüz yazı var amq!
+            }).ToList();
+
+            return new { meals = meals };
+        }
+
+        // --- ÖLÇÜ MOTORU ---
+        public async Task<IEnumerable<object>> GetMyMeasurementsAsync(int userId)
+        {
+            return await _measurementRepository
+                .Where(x => x.UserId == userId)
+                .OrderByDescending(x => x.RecordDate)
+                .Select(m => new
+                {
+                    date = m.RecordDate,
+                    weight = m.Weight,
+                    shoulder = m.Shoulder,
+                    chest = m.Chest,
+                    waist = m.Waist,
+                    rightArm = m.RightArm, // Kol olarak sağ kolu basıyoruz
+                    leftArm = m.LeftArm,
+                    neck = m.Neck
+                })
+                .AsNoTracking()
+                .ToListAsync();
+        }
     }
 }
