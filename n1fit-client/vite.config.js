@@ -18,6 +18,7 @@ export default defineConfig({
         theme_color: '#050505', // Chrome sekmesinin ve uygulamanın tepe rengi (Karanlık tema amq)
         background_color: '#050505',
         display: 'standalone', // Tarayıcı zımbırtılarını siktir eder, tam ekran mobil app gibi açılır!
+        start_url: '/',
         icons: [
           {
             src: '/pwa-192x192.png',
