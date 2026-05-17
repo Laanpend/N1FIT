@@ -7,6 +7,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate', // Biz güncellemeyi çıkınca arkada çaktırmadan indirir, adamı darlamaz!
+      devOptions: {
+        enabled: true
+      },
       includeAssets: ['favicon.svg', 'icons.svg'], // Önbelleğe atılacak demirbaşlar
       manifest: {
         name: 'N1FIT Fitness Dashboard',
