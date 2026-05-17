@@ -335,7 +335,7 @@ const MemberDetail = () => {
                         <div style={styles.card}>
                             <h3 style={{ color: 'white', marginTop: 0 }}>Beslenme Programı</h3>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                {diets.map((d, i) => (
+                                {[...diets].sort((a, b) => a.time.localeCompare(b.time)).map((d, i) => (
                                     <div key={i} style={{ backgroundColor: '#1a1a1a', padding: '15px', borderRadius: '5px', borderLeft: '3px solid #d90429', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                                             <div style={{ fontWeight: 'bold', color: '#d90429', fontSize: '1.2rem', minWidth: '60px' }}>{d.time}</div>
@@ -492,7 +492,12 @@ const MemberDetail = () => {
                                                     return (
                                                         <div key={exIdx} style={{ padding: '10px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                             <div>
-                                                                <div style={{ color: '#3b82f6', fontWeight: 'bold', fontSize: '1rem' }}>{allExercises.find(a => a.id == parseInt(ex.exerciseId))?.name}</div>
+                                                                <span style={{ fontWeight: 'bold', color: '#3b82f6' }}>
+                                                                    {exIdx + 1}. Hareket:
+                                                                </span>
+                                                                <span style={{ marginLeft: '5px' }}>
+                                                                    <div style={{ color: '#3b82f6', fontWeight: 'bold', fontSize: '1rem' }}>{allExercises.find(a => a.id == parseInt(ex.exerciseId))?.name}</div>
+                                                                </span>
                                                                 {isCardio ? (
                                                                     <div style={{ color: '#aaa', fontSize: '0.8rem' }}>{ex.duration} dk | Hız: {ex.speed} | Eğim: {ex.incline}</div>
                                                                 ) : (

@@ -7,37 +7,47 @@ const Login = () => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
 
-   const handleLogin = async (e) => {
-    e.preventDefault();
-    try {
-        // Backend'deki DTO ile birebir uyması için baş harflerini büyük dene
-        const response = await api.post('/Auth/login', { 
-            Email: email, 
-            Password: password 
-        });
-        
-        const token = response.data.token;
-        localStorage.setItem('n1fit_token', token);
-        
-        alert("N1FIT Dünyasına Hoş Geldin Kral!");
-
-        // YENİ MOTOR: Token'ın göbeğini (Payload) yarıp içindeki rütbeyi okuyoruz
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const userRole = payload.role || payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
-
-        // Raconu kesiyoruz: Rütbesi 2 (Admin) olanı VIP'ye, diğerlerini sahaya alıyoruz.
-        // Eğer senin C# tarafında roller "Admin" ve "Member" diye kelime olarak geliyorsa "2" yerine "Admin" yaz.
-        if (userRole === "2" || userRole === "Admin") {
-            window.location.href = '/admin'; // Patron Mekanı
-        } else {
-            window.location.href = '/member'; // Müşteri Mekanı
+   const parseJwt = (token) => {
+        try {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            return JSON.parse(jsonPayload);
+        } catch (e) {
+            return null;
         }
-        
-    } catch (err) {
-        console.error(err); 
-        setError("Giriş patladı, e-posta/şifre yanlış veya sunucu yandı emmoğlu.");
-    }
-};
+    };
+
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await api.post('/Auth/login', { email, password });
+            const token = res.data.token;
+
+            // CYBORG ÇÖZÜCÜYÜ KULLANIYORUZ
+            const payload = parseJwt(token);
+            
+            if (!payload) {
+                setError("Token parçalanamadı dayı, sistemde arıza var.");
+                return;
+            }
+
+            const userRole = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role;
+
+            if (userRole !== 'Admin') {
+                setError("Aslanım burası yönetim kapısı, müşteriysen ana sayfadan gir!");
+                return; 
+            }
+
+            localStorage.setItem('n1fit_token', token);
+            navigate('/admin');
+            
+        } catch (err) {
+            setError('Giriş patladı dayı! Şifreyi veya maili yanlış girdin.');
+        }
+    };
 
     return (
         <div style={styles.container}>

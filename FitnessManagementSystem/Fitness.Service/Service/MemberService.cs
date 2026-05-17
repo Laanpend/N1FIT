@@ -137,6 +137,7 @@ namespace Fitness.Service.Service
             // Veriyi çekerken hareketin adını ve videosunu da paketliyoruz (JOIN amq)!
             var exercises = await _workoutDayExerciseRepository
                 .Where(x => x.WorkoutDay.WorkoutProgram.UserId == userId && x.WorkoutDay.WorkoutProgram.IsActive == true)
+                .OrderBy(x => x.Id)
                 .Select(x => new
                 {
                     DayId = x.WorkoutDay.Id,

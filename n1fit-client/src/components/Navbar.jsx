@@ -27,7 +27,7 @@ const Navbar = ({ activeTab, setActiveTab, isLoggedIn, onLogout }) => {
                 {isLoggedIn ? (
                     <button onClick={onLogout} style={styles.logoutBtn}>ÇIKIŞ YAP</button>
                 ) : (
-                    <button onClick={() => navigate('/login')} style={styles.loginBtn}>GİRİŞ YAP</button>
+                    <button onClick={onOpenLogin} style={styles.loginBtn}>GİRİŞ YAP</button>
                 )}
             </div>
         </nav>

@@ -7,6 +7,7 @@ import WorkoutTab from '../components/WorkoutTab';
 import DietTab from '../components/DietTab';
 import MeasurementTab from '../components/MeasurementTab';
 import MembershipTab from '../components/MembershipTab';
+import MemberLoginModal from '../components/MemberLoginModal';
 
 const MemberDashboard = () => {
     const navigate = useNavigate();
@@ -15,6 +16,7 @@ const MemberDashboard = () => {
     const [activeTab, setActiveTab] = useState('home');
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [memberData, setMemberData] = useState(null);
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
     // Müşterinin tüm bilgilerini tutacağımız state
     const [profile, setProfile] = useState(null);
@@ -24,14 +26,43 @@ const MemberDashboard = () => {
     const [expandedDay, setExpandedDay] = useState(null);
     const [playingVideo, setPlayingVideo] = useState(null);
 
+    // Güvenli Token Çözücü Motoru (Bunu da dosyanın uygun bir yerine koy amq)
+    const parseJwt = (token) => {
+        try {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            return JSON.parse(jsonPayload);
+        } catch (e) {
+            return null;
+        }
+    };
+
     useEffect(() => {
-        // C# tarafında müşterinin sadece kendi bilgisini getiren bir uç yazman lazım dayıoğlu.
-        // Şimdilik temsili bir endpoint atıyorum, sen bunu kendi C# ucuna göre düzeltirsin.
         const token = localStorage.getItem('n1fit_token');
         if (token) {
-            setIsLoggedIn(true);
-            // Burada istersen API'den adamın bilgilerini çek
-            fetchMyData();
+            const payload = parseJwt(token);
+            const userRole = payload ? (payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role) : '';
+
+            // ADMİN VİTRİNE GİRDİYSE PROFİL ÇEKMEYE ÇALIŞMA, TOKENİ DE SİLME!
+            if (userRole === 'Admin') {
+                setIsLoggedIn(true);
+                return; // Makineyi burada durdur, aşağıya (C#'a) inmesin!
+            }
+
+            // EĞER MÜŞTERİYSE ASLANLAR GİBİ PROFİLİNİ ÇEK
+            api.get('/Member/my-profile')
+               .then(res => {
+                   setIsLoggedIn(true);
+                   fetchMyData(res.data);
+               })
+               .catch(err => {
+                   console.error("Kimlik patlak, kapı dışarı ediliyor:", err);
+                   localStorage.removeItem('n1fit_token');
+                   setIsLoggedIn(false);
+               });
         }
     }, []);
 
@@ -97,6 +128,7 @@ const MemberDashboard = () => {
                 setActiveTab={setActiveTab} 
                 isLoggedIn={isLoggedIn} 
                 onLogout={handleLogout} 
+                onOpenLogin={() => setIsLoginModalOpen(true)}
             />
 
             <div style={{ padding: '20px' }}>
@@ -121,6 +153,15 @@ const MemberDashboard = () => {
                 {isLoggedIn && activeTab === 'diet' && <DietTab />}
                 {isLoggedIn && activeTab === 'measure' && <MeasurementTab />}
             </div>
+            <MemberLoginModal 
+                isOpen={isLoginModalOpen} 
+                onClose={() => setIsLoginModalOpen(false)} 
+                onLoginSuccess={() => {
+                    setIsLoggedIn(true);
+                    // Sayfayı yenilemeden direkt adamı içeride gösteriyoruz!
+                    window.location.reload(); // En temizi sayfayı bir kez zımbalamak, state kargaşası olmaz.
+                }} 
+            />
         </div>
     </div>
             
