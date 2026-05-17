@@ -6,6 +6,8 @@ const MembershipTab = () => {
     const [profile, setProfile] = useState(null);
 
     useEffect(() => {
+        const token = localStorage.getItem('n1fit_token');
+        if (!token) return;
         api.get('/Member/my-profile')
            .then(res => setProfile(res.data))
            .catch(err => console.error("Profil çekilemedi:", err));

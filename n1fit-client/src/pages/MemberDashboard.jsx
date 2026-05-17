@@ -46,23 +46,18 @@ const MemberDashboard = () => {
             const payload = parseJwt(token);
             const userRole = payload ? (payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role) : '';
 
-            // ADMİN VİTRİNE GİRDİYSE PROFİL ÇEKMEYE ÇALIŞMA, TOKENİ DE SİLME!
             if (userRole === 'Admin') {
                 setIsLoggedIn(true);
-                return; // Makineyi burada durdur, aşağıya (C#'a) inmesin!
+                setLoading(false); // Admin'se yüklemeyi kes, vitrini aç
+                return; 
             }
 
-            // EĞER MÜŞTERİYSE ASLANLAR GİBİ PROFİLİNİ ÇEK
-            api.get('/Member/my-profile')
-               .then(res => {
-                   setIsLoggedIn(true);
-                   fetchMyData(res.data);
-               })
-               .catch(err => {
-                   console.error("Kimlik patlak, kapı dışarı ediliyor:", err);
-                   localStorage.removeItem('n1fit_token');
-                   setIsLoggedIn(false);
-               });
+            // Aslan parçası müşteriyse verisini çek (fetchMyData zaten API'ye gidip loading'i false yapar)
+            setIsLoggedIn(true);
+            fetchMyData();
+        } else {
+            // ADAM ZİYARETÇİYSE (Token yoksa) YÜKLEME EKRANINDA BIRAKMA, VİTRİNİ GÖSTER!
+            setLoading(false);
         }
     }, []);
 
@@ -89,8 +84,7 @@ const MemberDashboard = () => {
 
     const handleLogout = () => {
         localStorage.removeItem('n1fit_token');
-        setIsLoggedIn(false);
-        setActiveTab('home');
+        window.location.href = '/'; // Sayfayı komple yenileyip vitrine fırlatır! 
     };
 
     // YouTube Thumbnail Ayıklama Motoru

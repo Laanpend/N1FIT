@@ -1,12 +1,18 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { usePWA } from '../hooks/usePWA';
+import { Download } from 'lucide-react';
 
-const Navbar = ({ activeTab, setActiveTab, isLoggedIn, onLogout }) => {
+const Navbar = ({ activeTab, setActiveTab, isLoggedIn, onLogout, onOpenLogin }) => {
+    const { isInstallable, installPWA } = usePWA();
     const navigate = useNavigate();
 
     return (
         <nav style={styles.nav}>
-            <div style={styles.logo} onClick={() => setActiveTab('home')}>N1FIT</div>
+            <div style={styles.logo} onClick={() => setActiveTab('home')}>
+                <span style={{ color: '#d90429' }}>N1</span>FIT
+            </div>
+            {/* <div style={styles.logo} onClick={() => setActiveTab('home')}>N1FIT</div> */}
 
             <div style={styles.menu}>
                 {/* Herkesin görebileceği ana sayfa linki */}
@@ -24,6 +30,28 @@ const Navbar = ({ activeTab, setActiveTab, isLoggedIn, onLogout }) => {
             </div>
 
             <div style={styles.auth}>
+                {/* EĞER TELEFONA KURULABİLİYORSA BU FİYAKALI BUTON ÇIKACAK! */}
+                {isInstallable && (
+                    <button 
+                        onClick={installPWA} 
+                        style={{ 
+                            backgroundColor: '#3b82f6', 
+                            color: 'white', 
+                            border: 'none', 
+                            padding: '8px 15px', 
+                            borderRadius: '8px', 
+                            cursor: 'pointer', 
+                            fontWeight: 'bold', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '5px',
+                            marginRight: '15px' 
+                        }}
+                    >
+                        <Download size={18} /> UYGULAMAYI İNDİR
+                    </button>
+                )}
+
                 {isLoggedIn ? (
                     <button onClick={onLogout} style={styles.logoutBtn}>ÇIKIŞ YAP</button>
                 ) : (

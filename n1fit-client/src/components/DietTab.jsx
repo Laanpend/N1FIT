@@ -5,6 +5,8 @@ const DietTab = () => {
     const [dietProgram, setDietProgram] = useState({ meals: [] });
 
     useEffect(() => {
+        const token = localStorage.getItem('n1fit_token');
+        if (!token) return;
         // C# tarafında bu ucu bağlaman lazım!
         api.get('/Member/my-diet')
             .then(res => setDietProgram(res.data || { meals: [] }))

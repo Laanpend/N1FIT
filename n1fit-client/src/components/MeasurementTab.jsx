@@ -5,6 +5,8 @@ const MeasurementTab = () => {
     const [measurements, setMeasurements] = useState([]);
 
     useEffect(() => {
+        const token = localStorage.getItem('n1fit_token');
+        if (!token) return;
         api.get('/Member/my-measurements')
            .then(res => setMeasurements(res.data || []))
            .catch(err => console.error("Ölçüler patladı:", err));

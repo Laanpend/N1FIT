@@ -160,12 +160,12 @@ const AdminDashboard = () => {
             };
 
             await api.post(`/Admin/members/${selectedMember.id}/pay-debt`, payload);
-            
+
             alert("Borçtan düşüldü, kasa ferahladı emmoğlu!");
             setShowPayDebtModal(false);
             setPaymentAmount('');
             fetchMembers(); // Tabloyu ve borcu ekranda anında tazele!
-            
+
         } catch (err) {
             console.error("Ödeme hatası:", err);
             alert("Ödeme alınırken motor yaktık!");
@@ -353,7 +353,7 @@ const AdminDashboard = () => {
                             {editingMemberId ? 'Üye Bilgilerini Düzenle' : 'Yeni Üye Kaydı'}
                         </h3>
                         <form onSubmit={handleSaveMember} style={styles.modalForm}>
-                            
+
                             {/* ORTAK ALANLAR: Ad, Soyad, Telefon, E-Posta, Şifre */}
                             <div style={{ display: 'flex', gap: '10px' }}>
                                 <input style={{ ...styles.modalInput, flex: 1 }} placeholder="Ad" value={formData.firstName} onChange={e => setFormData({ ...formData, firstName: e.target.value })} required />
@@ -404,12 +404,12 @@ const AdminDashboard = () => {
                         {/* ==================================================== */}
                         {editingMemberId && (
                             <div style={{ marginTop: '25px', paddingTop: '20px', borderTop: '1px solid #333', display: 'flex', gap: '10px' }}>
-                                
-                                <button 
-                                    type="button" 
+
+                                <button
+                                    type="button"
                                     onClick={() => {
                                         // Uzatma modalına gerekli veriyi basıyoruz
-                                        setSelectedRenewMember(selectedMember); 
+                                        setSelectedRenewMember(selectedMember);
                                         setShowRenewModal(true);
                                         // İstersen ana modalı kapatabilirsin: setShowModal(false);
                                     }}
@@ -420,7 +420,7 @@ const AdminDashboard = () => {
 
                                 {/* Eğer adamın borcu varsa Borç Öde butonu da çıksın */}
                                 {selectedMember && ((selectedMember.totalDebt || 0) - (selectedMember.paidAmount || 0)) > 0 && (
-                                    <button 
+                                    <button
                                         type="button"
                                         onClick={() => setShowPayDebtModal(true)}
                                         style={{ ...styles.submitBtn, backgroundColor: '#d90429', color: 'white', flex: 1, padding: '10px', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer' }}
@@ -463,7 +463,7 @@ const AdminDashboard = () => {
                             <div>
                                 <label style={styles.modalLabel}>Şu An Peşin Ödenen (TL)</label>
                                 <input
-                                    style={styles.input, { border: '1px solid #edf2f4', borderRadius: 'flex', backgroundColor: '#1a1a1a', color: 'white' }}
+                                    style={{ ...styles.input, border: '1px solid #edf2f4', borderRadius: '8px', backgroundColor: '#1a1a1a', color: 'white' }}
                                     type="number"
                                     step="0.1"
                                     placeholder="Kasaya giren nakit"

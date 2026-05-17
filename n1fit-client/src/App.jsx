@@ -12,26 +12,38 @@ import './index.css';
 // 🛡️ ADMİN BODYGUARD MOTORU (Geçiş Kontrolü)
 // =======================================================
 // Bu motor sadece token'ı olan ve rolü 'Admin' olan aslanları içeri alır.
+// =======================================================
+// 🛡️ ADMİN BODYGUARD MOTORU (Geçiş Kontrolü)
+// =======================================================
 const AdminRoute = ({ children }) => {
     const token = localStorage.getItem('n1fit_token');
     
-    // Kimlik yoksa direkt kapı dışarı!
     if (!token) return <Navigate to="/admin/login" />;
+
+    // TÜRKÇE KARAKTER PATLAMASINI ÖNLEYEN JİLET MOTOR!
+    const parseJwt = (t) => {
+        try {
+            const base64Url = t.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            return JSON.parse(jsonPayload);
+        } catch (e) {
+            return null;
+        }
+    };
     
     try {
-        // Token'ın ciğerini söküp role bakıyoruz
-        const payload = JSON.parse(atob(token.split('.')[1]));
+        const payload = parseJwt(token);
+        if (!payload) return <Navigate to="/admin/login" />;
+
         const userRole = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role;
         
-        // Müşteriyse veya hıyarın tekiyse siktiri basıp vitrine yolla!
-        if (userRole !== 'Admin') {
-            return <Navigate to="/" />; 
-        }
+        if (userRole !== 'Admin') return <Navigate to="/" />; 
         
-        // Aslan parçası adminmiş, buyur mekana gir!
         return children;
     } catch (error) {
-        // Token patlaksa veya sahteyse yine şutla
         return <Navigate to="/admin/login" />;
     }
 };

@@ -7,6 +7,8 @@ const WorkoutTab = () => {
     const [playingVideo, setPlayingVideo] = useState(null);
 
     useEffect(() => {
+        const token = localStorage.getItem('n1fit_token');
+        if (!token) return;
         const fetchData = async () => {
             try {
                 // ARTIK ADMİN KAPISINA GİTMİYORUZ, HER ŞEY BURADAN HAZIR GELİYOR AMQ!
