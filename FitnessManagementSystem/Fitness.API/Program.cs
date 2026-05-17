@@ -117,32 +117,27 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
-// app.UseAuthorization()'dan hemen önce ekle
+// 1. ÞASE: BUNU YORUMA AL! Ngrok kullanýrken bu açýk kalýrsa trafiði siktir edip 502 yedirtir!
+// app.UseHttpsRedirection(); 
+
 app.UseRouting();
 
+// CORS ÝZNÝ KESÝNLÝKLE BURADA OLACAK
 app.UseCors("AllowAll");
+
+// 2. ÞASE: AHA BU MERMÝYÝ SÝLMÝÞSÝN AMQ! BUNU EKLEMEZSEN TOKEN KONTROLÜ ÇALIÞMAZ!
+app.UseAuthentication();
 
 app.UseAuthorization();
 
 app.MapControllers();
-
 app.UseHangfireDashboard();
-using (var scope = app.Services.CreateScope())
-{
-    var jobService = scope.ServiceProvider.GetRequiredService<JobService>();
 
-    // Her gece yarýsý üyelik kontrolü yap
-    RecurringJob.AddOrUpdate("CheckSubscriptions", () => jobService.CheckExpiringSubscriptions(), Cron.Daily);
-
-    // Her ayýn baþýnda temizlik yap
-    RecurringJob.AddOrUpdate("CleanupInactive", () => jobService.ClearInactiveMembers(), Cron.Monthly);
-}
+// ... gerisi ayný (Hangfire joblarý vs)
 app.Run();
