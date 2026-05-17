@@ -106,7 +106,7 @@ builder.Services.AddSwaggerGen(c =>
 // builder.Build()'dan önce ekle
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("N1FitPolicy", policy =>
+    options.AddPolicy("AllowAll", policy =>
     {
         policy.AllowAnyOrigin() // Þimdilik her yere izin ver, sunucuya çýkarken kýsýtlarýz
               .AllowAnyMethod()
@@ -126,7 +126,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 // app.UseAuthorization()'dan hemen önce ekle
-app.UseCors("N1FitPolicy");
+app.UseRouting();
+
+app.UseCors("AllowAll");
 
 app.UseAuthorization();
 
