@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
     PlayCircle, Calendar, Clock, AlertTriangle, Snowflake, 
     LogOut, Dumbbell, Activity, MapPin, Phone, Target, 
-    ShieldCheck, CheckCircle, ChevronRight, Zap, ChevronRight, ChevronLeft
+    ShieldCheck, CheckCircle, ChevronRight, ChevronLeft, Zap
 } from 'lucide-react';
 import api from '../api/axiosConfig';
 import Navbar from '../components/Navbar';
@@ -26,17 +26,17 @@ function urlB64ToUint8Array(base64String) {
 }
 
 // ==========================================
-// V8 MOTORLU, YUMUŞAK GEÇİŞLİ SLIDER!
+// V8 MOTORLU, YUMUŞAK GEÇİŞLİ SLIDER AMQ!
 // ==========================================
 const AutoSlider = ({ images }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
 
-    // Otomatik kayma motoru (Adam elle basınca süre sıfırlansın diye currentIndex'i de ekledik)
+    // Otomatik kayma motoru
     useEffect(() => {
         if (!images || images.length === 0) return;
         const interval = setInterval(() => {
             setCurrentIndex((prev) => (prev + 1) % images.length);
-        }, 4000); // 4 saniye yaptık, adam fotoğrafa rahat baksın
+        }, 4000); // 4 saniyede bir döner
         return () => clearInterval(interval);
     }, [images, currentIndex]);
 
@@ -62,8 +62,8 @@ const AutoSlider = ({ images }) => {
                         alt={`N1FIT Foto ${idx}`} 
                         style={{
                             ...styles.sliderImage,
-                            opacity: idx === currentIndex ? 1 : 0, // Sadece sırası gelenin ışığı yanar!
-                            transition: 'opacity 0.8s ease-in-out' // Aha sihirli mermi bu: 0.8 saniyede yağ gibi kayar!
+                            opacity: idx === currentIndex ? 1 : 0, 
+                            transition: 'opacity 0.8s ease-in-out' 
                         }} 
                     />
                 ))}
@@ -74,7 +74,7 @@ const AutoSlider = ({ images }) => {
                 <ChevronRight size={30} color="white" />
             </button>
 
-            {/* ALT KISIMDAKİ NOKTALAR (Tıklanabilir) */}
+            {/* ALT KISIMDAKİ NOKTALAR */}
             <div style={styles.sliderDots}>
                 {images.map((_, idx) => (
                     <div 
@@ -84,7 +84,7 @@ const AutoSlider = ({ images }) => {
                             ...styles.dot, 
                             backgroundColor: idx === currentIndex ? '#d90429' : 'rgba(255,255,255,0.3)',
                             cursor: 'pointer',
-                            transform: idx === currentIndex ? 'scale(1.2)' : 'scale(1)' // Aktif olan nokta hafif büyür
+                            transform: idx === currentIndex ? 'scale(1.2)' : 'scale(1)' 
                         }} 
                     />
                 ))}
@@ -99,10 +99,12 @@ const MemberDashboard = () => {
 
     const [activeTab, setActiveTab] = useState('home');
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    
+    // Adam önceden bildirim izni vermiş mi diye tarayıcının beynini okuyan motor!
     const [isNotifyGranted, setIsNotifyGranted] = useState(
         'Notification' in window ? Notification.permission === 'granted' : false
     );
-    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     
     // BİLDİRİM ŞİFRESİ
     const PUBLIC_VAPID_KEY = "BGme68ndHvhXyZ8dtnIIcsE89ELVrcXIaiDNrA4zACgknZbOaCPL9ny1E6qlo7MoNr22EhFqv8NdFVMnw3V6hhY";
@@ -112,27 +114,22 @@ const MemberDashboard = () => {
     const [diets, setDiets] = useState([]);
     const [measurements, setMeasurements] = useState([]);
 
-    // --- SENİN SALON VE PAKET FOTOLARI BURAYA GELECEK DAYI! ---
     const gymImages = [
-        "/SalonunFotolari/Salon1.jpeg",
-        "/SalonunFotolari/Salon2.jpeg",
-        "/SalonunFotolari/Salon3.jpeg",
-        "/SalonunFotolari/Salon4.jpeg",
-        "/SalonunFotolari/Salon5.jpeg",
-        "/SalonunFotolari/Salon6.jpeg",
-        "/SalonunFotolari/Salon7.jpeg",
-        "/SalonunFotolari/Salon8.jpeg",
-        "/SalonunFotolari/Salon9.jpeg",
-        "/SalonunFotolari/Salon10.jpeg"
+        "/SalonunFotolari/salon1.jpeg",
+        "/SalonunFotolari/salon2.jpeg",
+        "/SalonunFotolari/salon3.jpeg",
+        "/SalonunFotolari/salon4.jpeg",
+        "/SalonunFotolari/salon5.jpeg",
+        "/SalonunFotolari/salon6.jpeg",
+        "/SalonunFotolari/salon7.jpeg",
+        "/SalonunFotolari/salon8.jpeg",
+        "/SalonunFotolari/salon9.jpeg",
+        "/SalonunFotolari/salon10.jpeg"
     ];
     
     const packageImages = [
-        "/PaketlerinFotolari/Paket1.jpeg",
-        "/PaketlerinFotolari/Paket2.jpeg",
-        "/PaketlerinFotolari/Paket3.jpeg",
-        "/PaketlerinFotolari/Paket4.jpeg",
-        "/PaketlerinFotolari/Paket5.jpeg",
-        "/PaketlerinFotolari/Paket6.jpeg"
+        "https://images.unsplash.com/photo-1593079831268-3381b0c42388?q=80&w=2069", 
+        "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=2070"  
     ];
 
     const parseJwt = (token) => {
@@ -194,7 +191,9 @@ const MemberDashboard = () => {
                 const swReg = await navigator.serviceWorker.ready;
                 const permission = await Notification.requestPermission();
                 if (permission === 'granted') {
-                    setIsNotifyGranted(true);
+                    
+                    setIsNotifyGranted(true); // İzin verildiği an butonu patlatır!
+                    
                     const subscription = await swReg.pushManager.subscribe({
                         userVisibleOnly: true,
                         applicationServerKey: urlB64ToUint8Array(PUBLIC_VAPID_KEY)
@@ -205,7 +204,7 @@ const MemberDashboard = () => {
                         p256dh: subJSON.keys.p256dh,
                         auth: subJSON.keys.auth
                     });
-                    alert("Bildirimler Aktif!");
+                    alert("Bildirimler Aktif! Aidat gelince titreteceğiz.");
                 } else {
                     alert("Aktif Ederseniz Üyeliğiniz Bitmeden Haberdar Olursunuz!");
                 }
@@ -232,29 +231,26 @@ const MemberDashboard = () => {
 
                 <div style={{ padding: '0 20px', paddingBottom: '80px' }}>
                     
-                    {/* BİLDİRİMLERİ AÇ BUTONU (Sadece Login olan godoşlar görür) */}
-                    {isLoggedIn && !isNotifyGranted &&(
-                        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+                    {/* BİLDİRİMLERİ AÇ BUTONU (Sadece Login olan ve izni OLMAYAN godoşlar görür) */}
+                    {isLoggedIn && !isNotifyGranted && (
+                        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px', marginBottom: '20px' }}>
                             <button onClick={handleEnableNotifications} style={styles.notifyBtn}>
-                                <AlertTriangle size={20} /> BİLDİRİMLERİ AÇ
+                                <AlertTriangle size={20} /> BİLDİRİMLERİ AÇ ASLANIM
                             </button>
                         </div>
                     )}
 
-                    {/* =======================================================
-                        VİTRİN KISMI (ANA SAYFA / LANDING PAGE)
-                    ======================================================= */}
+                    {/* VİTRİN KISMI (ANA SAYFA / LANDING PAGE) */}
                     {activeTab === 'home' && (
                         <div style={styles.landingContainer}>
                             
-                            {/* 1. BAŞLIK */}
                             <h1 style={styles.heroTitle}>N1<span style={{color: '#d90429'}}>FIT</span> SPOR MERKEZİ</h1>
                             <p style={styles.heroSubtitle}>Bilimin, Disiplinin ve 15 Yıllık Tecrübenin Buluştuğu Yer</p>
 
-                            {/* 2. SALON FOTOLARI (SLIDER 1) */}
+                            {/* SALON FOTOLARI (SLIDER 1) */}
                             <AutoSlider images={gymImages} />
 
-                            {/* 3. BİZ KİMİZ / MİSYON / VİZYON */}
+                            {/* BİZ KİMİZ / MİSYON / VİZYON */}
                             <div style={styles.aboutSection}>
                                 <h2 style={styles.sectionTitle}>BİZ KİMİZ?</h2>
                                 <p style={styles.paragraph}>
@@ -289,7 +285,7 @@ const MemberDashboard = () => {
                                 </div>
                             </div>
 
-                            {/* 4. HİZMETLERİMİZ */}
+                            {/* HİZMETLERİMİZ */}
                             <h2 style={styles.sectionTitle}>HİZMETLERİMİZ</h2>
                             <div style={styles.servicesGrid}>
                                 <div style={styles.serviceCard}>
@@ -309,35 +305,24 @@ const MemberDashboard = () => {
                                 </div>
                             </div>
 
-                            {/* 5. PAKETLER VE FİYATLAR (SLIDER 2) */}
+                            {/* PAKETLER VE FİYATLAR (SLIDER 2) */}
                             <h2 style={styles.sectionTitle} style={{marginTop: '60px'}}>PAKETLERİMİZ</h2>
                             <AutoSlider images={packageImages} />
 
-                            {/* 6. CALL TO ACTION (Ateşleme Butonları) */}
+                            {/* CALL TO ACTION (Ateşleme Butonları) */}
                             <div style={styles.ctaContainer}>
-                                {/* TIKLANDIĞI AN TELEFONUN ARAMA EKRANINI AÇAR VE NUMARAYI YAZAR ASLANIM! */}
                                 <a href="tel:5396078155" style={{ textDecoration: 'none' }}>
                                     <button style={styles.ctaBtnPrimary}>
                                         Ücretsiz Tanışma Seansı Randevusu Al <ChevronRight />
                                     </button>
                                 </a>
 
-                                {/* BU BUTON ŞİMDİLİK KİLİTLİ, TIKLANAMAZ! ARKA PLANI HAFİF SÖNÜK YAPTIM
-                                <button 
-                                    disabled 
-                                    style={{
-                                        ...styles.ctaBtnSecondary,
-                                        opacity: 0.4,
-                                        cursor: 'not-allowed',
-                                        borderColor: '#444',
-                                        color: '#666'
-                                    }}
-                                >
+                                <button disabled style={{ ...styles.ctaBtnSecondary, opacity: 0.4, cursor: 'not-allowed', borderColor: '#444', color: '#666' }}>
                                     Hemen Kaydol, Değişimi Başlat (Çok Yakında) <Zap />
-                                </button> */}
+                                </button>
                             </div>
 
-                            {/* 7. İLETİŞİM / FOOTER */}
+                            {/* İLETİŞİM / FOOTER */}
                             <footer style={styles.footer}>
                                 <div style={styles.footerLogo}>N1<span style={{color:'#d90429'}}>FIT</span></div>
                                 <p style={styles.footerText}>Bahanelere yer yok, sadece sonuç var!</p>
@@ -359,7 +344,6 @@ const MemberDashboard = () => {
                         </div>
                     )}
 
-                    {/* DİĞER SEKMELER */}
                     {isLoggedIn && activeTab === 'membership' && <MembershipTab />}
                     {isLoggedIn && activeTab === 'workout' && <WorkoutTab />}
                     {isLoggedIn && activeTab === 'diet' && <DietTab />}
@@ -385,82 +369,33 @@ const MemberDashboard = () => {
 const styles = {
     container: { minHeight: '100vh', backgroundColor: '#0a0a0a', color: 'white' },
     notifyBtn: { backgroundColor: '#d90429', color: 'white', padding: '12px 24px', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(217,4,41,0.4)' },
-    
     landingContainer: { textAlign: 'center', marginTop: '40px', maxWidth: '1000px', margin: '40px auto 0 auto' },
     heroTitle: { fontSize: '3.5rem', fontWeight: '900', color: '#fff', textTransform: 'uppercase', marginBottom: '10px' },
     heroSubtitle: { fontSize: '1.2rem', color: '#aaa', marginBottom: '40px', fontWeight: '600' },
     
-    // Slider Tasarımı
-    // --- YENİ SLIDER TASARIMI ---
-    sliderContainer: { 
-        position: 'relative', 
-        width: '100%', 
-        maxWidth: '450px', // PC'de eşek kadar olup ekranı kaplamasın diye sınırı çektik
-        aspectRatio: '3/4', // AHA! Tam iPhone dikey fotoğraf oranı (3024x4032 ile birebir aynı)
-        margin: '0 auto 50px auto', 
-        borderRadius: '15px', 
-        overflow: 'hidden', 
-        boxShadow: '0 0 40px rgba(217, 4, 41, 0.25)', 
-        backgroundColor: '#050505' 
-    },
-    sliderImageWrapper: {
-        width: '100%',
-        height: '100%',
-        position: 'relative'
-    },
-    sliderImage: { 
-        position: 'absolute', // Fotoları üst üste bindirdik ki biri kararırken diğeri aydınlansın
-        top: 0,
-        left: 0,
-        width: '100%', 
-        height: '100%', 
-        objectFit: 'cover', // Konteyner zaten 3:4 olduğu için zerre kadar kırpma yapmaz, jilet gibi oturur
-        display: 'block'
-    },
-    sliderBtnLeft: {
-        position: 'absolute', top: '50%', left: '10px', transform: 'translateY(-50%)',
-        backgroundColor: 'rgba(0, 0, 0, 0.6)', border: 'none', borderRadius: '50%',
-        width: '45px', height: '45px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        cursor: 'pointer', zIndex: 10, transition: '0.3s'
-    },
-    sliderBtnRight: {
-        position: 'absolute', top: '50%', right: '10px', transform: 'translateY(-50%)',
-        backgroundColor: 'rgba(0, 0, 0, 0.6)', border: 'none', borderRadius: '50%',
-        width: '45px', height: '45px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        cursor: 'pointer', zIndex: 10, transition: '0.3s'
-    },
-    sliderDots: { 
-        position: 'absolute', bottom: '15px', left: '50%', transform: 'translateX(-50%)', 
-        display: 'flex', gap: '10px', zIndex: 10 
-    },
-    dot: { 
-        width: '10px', height: '10px', borderRadius: '50%', transition: 'all 0.3s' 
-    },
+    // --- 3:4 ORANLI İPHONE SLIDER TASARIMI ---
+    sliderContainer: { position: 'relative', width: '100%', maxWidth: '450px', aspectRatio: '3/4', margin: '0 auto 50px auto', borderRadius: '15px', overflow: 'hidden', boxShadow: '0 0 40px rgba(217, 4, 41, 0.25)', backgroundColor: '#050505' },
+    sliderImageWrapper: { width: '100%', height: '100%', position: 'relative' },
+    sliderImage: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
+    sliderBtnLeft: { position: 'absolute', top: '50%', left: '10px', transform: 'translateY(-50%)', backgroundColor: 'rgba(0, 0, 0, 0.6)', border: 'none', borderRadius: '50%', width: '45px', height: '45px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10, transition: '0.3s' },
+    sliderBtnRight: { position: 'absolute', top: '50%', right: '10px', transform: 'translateY(-50%)', backgroundColor: 'rgba(0, 0, 0, 0.6)', border: 'none', borderRadius: '50%', width: '45px', height: '45px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10, transition: '0.3s' },
+    sliderDots: { position: 'absolute', bottom: '15px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '10px', zIndex: 10 },
+    dot: { width: '10px', height: '10px', borderRadius: '50%', transition: 'all 0.3s' },
     
-    // Hakkımızda Kısmı
     aboutSection: { backgroundColor: '#111', padding: '40px', borderRadius: '15px', border: '1px solid #222', marginBottom: '40px', textAlign: 'left' },
     sectionTitle: { fontSize: '2.2rem', fontWeight: '900', color: '#fff', marginBottom: '25px', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '1px' },
     paragraph: { fontSize: '1.1rem', color: '#bbb', lineHeight: '1.8', marginBottom: '20px' },
-    
     missionGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginTop: '40px' },
     missionCard: { backgroundColor: '#0a0a0a', padding: '25px', borderRadius: '10px', borderLeft: '4px solid #d90429' },
-    
-    // Neden Biz
     whyUsContainer: { margin: '50px 0', padding: '30px', backgroundColor: 'rgba(217, 4, 41, 0.05)', borderRadius: '15px', border: '1px solid rgba(217, 4, 41, 0.2)' },
     whyUsTitle: { fontSize: '1.5rem', fontWeight: 'bold', color: '#d90429', marginBottom: '20px' },
     whyUsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px', textAlign: 'left' },
     whyUsItem: { display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.1rem', fontWeight: '600', color: '#fff' },
-
-    // Hizmetlerimiz
     servicesGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '25px', marginBottom: '50px' },
     serviceCard: { backgroundColor: '#111', padding: '30px', borderRadius: '15px', border: '1px solid #222', transition: 'transform 0.3s, boxShadow 0.3s', textAlign: 'left' },
-    
-    // Aksiyon Butonları
     ctaContainer: { display: 'flex', flexDirection: 'column', gap: '15px', alignItems: 'center', marginTop: '40px', marginBottom: '60px' },
     ctaBtnPrimary: { backgroundColor: '#d90429', color: 'white', padding: '18px 40px', fontSize: '1.2rem', fontWeight: 'bold', border: 'none', borderRadius: '50px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 10px 30px rgba(217, 4, 41, 0.4)', transition: '0.3s' },
     ctaBtnSecondary: { backgroundColor: 'transparent', color: '#fff', padding: '15px 35px', fontSize: '1.1rem', fontWeight: 'bold', border: '2px solid #d90429', borderRadius: '50px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', transition: '0.3s' },
-
-    // Footer / İletişim
     footer: { backgroundColor: '#050505', borderTop: '2px solid #222', padding: '50px 20px', textAlign: 'center', marginTop: '40px' },
     footerLogo: { fontSize: '2.5rem', fontWeight: '900', letterSpacing: '2px', marginBottom: '10px' },
     footerText: { color: '#666', fontSize: '1rem', fontStyle: 'italic', marginBottom: '30px' },
