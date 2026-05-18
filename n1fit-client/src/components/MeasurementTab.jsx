@@ -13,7 +13,7 @@ const MeasurementTab = () => {
     }, []);
 
     if (measurements.length === 0) {
-        return <div style={{ color: '#aaa', textAlign: 'center', marginTop: '50px' }}>Daha hiç ölçün alınmamış dayı, hocana söyle mezurayı getirsin!</div>;
+        return <div style={{ color: '#aaa', textAlign: 'center', marginTop: '50px' }}>Daha hiç ölçün alınmamış</div>;
     }
 
     // ==========================================

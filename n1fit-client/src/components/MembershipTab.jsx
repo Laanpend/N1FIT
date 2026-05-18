@@ -13,7 +13,7 @@ const MembershipTab = () => {
            .catch(err => console.error("Profil çekilemedi:", err));
     }, []);
 
-    if (!profile) return <div style={{ color: '#aaa', textAlign: 'center', marginTop: '50px' }}>Bilgiler toparlanıyor aslanım, bekle...</div>;
+    if (!profile) return <div style={{ color: '#aaa', textAlign: 'center', marginTop: '50px' }}>Bilgiler toparlanıyor, bekle...</div>;
 
     // Senin koddaki o jilet tarih tıraşlama fonksiyonu
     const formatDate = (dateString) => {

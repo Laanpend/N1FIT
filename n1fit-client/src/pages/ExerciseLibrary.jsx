@@ -29,7 +29,7 @@ const ExerciseLibrary = () => {
             const res = await api.get('/Admin/exercises');
             setExercises(res.data);
         } catch (err) {
-            console.error("Hareketleri çekerken tesisat patladı amq", err);
+            console.error("Hareketleri çekerken tesisat patladı", err);
         }
     };
 
@@ -64,7 +64,7 @@ const ExerciseLibrary = () => {
 
             // Güvenlik kilidi: Adam isimsiz hareket eklemesin
             if (!payload.name || !payload.muscleGroup) {
-                alert("İsim ve bölgeyi boş bırakma amq!");
+                alert("İsim ve bölgeyi boş bırakma!");
                 return;
             }
 
@@ -90,7 +90,7 @@ const ExerciseLibrary = () => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm("Bu hareketi kütüphaneden siktir edip atıyoruz, emin misin emmoğlu?")) {
+        if (window.confirm("Bu hareketi kütüphaneden çıkarıyoruz, emin misin?")) {
             try {
                 await api.delete(`/Admin/exercises/${id}`);
                 fetchExercises();
@@ -117,18 +117,18 @@ const ExerciseLibrary = () => {
                             <h2 style={{ color: 'white', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <Dumbbell color="#d90429" /> Kapsamlı Hareket Kütüphanesi
                             </h2>
-                            <p style={{ color: '#888', marginTop: '5px' }}>Dükkandaki tüm hareketleri ve eğitim videolarını buradan yönet dayı.</p>
+                            <p style={{ color: '#888', marginTop: '5px' }}>Dükkandaki tüm hareketleri ve eğitim videolarını buradan yönet.</p>
                         </div>
                     </div>
                     <button onClick={() => openModal()} style={styles.addBtn}>
-                        <Plus size={18} /> Yeni Hareket Çak
+                        <Plus size={18} /> Yeni Hareket Ekle
                     </button>
                 </div>
 
                 {/* HAREKETLER GRID YAPISI */}
                 <div style={styles.grid}>
                     {exercises.length === 0 ? (
-                        <p style={{ color: '#666', gridColumn: '1 / -1', textAlign: 'center', padding: '40px' }}>Kütüphane bomboş amq, yukarıdan hareket ekle.</p>
+                        <p style={{ color: '#666', gridColumn: '1 / -1', textAlign: 'center', padding: '40px' }}>Kütüphane bomboş, yukarıdan hareket ekle.</p>
                     ) : (
                         exercises.map(ex => {
                             const embedUrl = getYouTubeEmbedUrl(ex.videoUrl);

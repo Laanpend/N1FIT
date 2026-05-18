@@ -37,11 +37,11 @@ const PackageLibrary = () => {
             else await api.post('/Admin/packages', form);
             setShowModal(false);
             fetchPackages();
-        } catch (err) { alert("Kaydederken patladık amq!"); }
+        } catch (err) { alert("Kaydederken patladık!"); }
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm("Bu paketi siliyoruz, emin misin? İçerideki üyeler patlamasın?")) {
+        if (window.confirm("Bu paketi siliyoruz, emin misin?")) {
             await api.delete(`/Admin/packages/${id}`);
             fetchPackages();
         }

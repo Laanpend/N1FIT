@@ -51,7 +51,7 @@ const ProgramManager = () => {
                 fetchExistingDiet();
                 fetchExistingProgram(fetchedExercises); // Hareketi bulabilsin diye içeri yolluyoruz
             } catch (error) {
-                console.error("Ana verileri çekerken tesisat patladı amq", error);
+                console.error("Ana verileri çekerken tesisat patladı", error);
             }
         };
 
@@ -65,7 +65,7 @@ const ProgramManager = () => {
                 setMeals(res.data);
             }
         } catch (err) {
-            console.log("Diyet çekilirken patladı amq");
+            console.log("Diyet çekilirken patladı");
         }
     };
 
@@ -115,10 +115,10 @@ const ProgramManager = () => {
             }))
         };
             await api.post(`/Admin/members/${id}/diet-program`, payload);
-            alert("Beslenme programı beton gibi SQL'e oturdu emmoğlu!");
+            alert("Beslenme programı beton gibi SQL'e oturdu!");
         } catch (err) {
             console.error(err);
-            alert("Mutfakta yangın çıktı amq, kaydolmadı!");
+            alert("Mutfakta yangın çıktı, kaydolmadı!");
         }
     };
 
@@ -132,7 +132,7 @@ const ProgramManager = () => {
     };
 
     const handleDeleteDay = (dayId) => {
-        if (window.confirm("Bu günü içindeki hareketlerle beraber siktir edip atıyoruz, emin misin emmoğlu?")) {
+        if (window.confirm("Bu günü içindeki hareketlerle beraber siliyoruz, emin misin?")) {
             const newDays = days.filter(d => d.id !== dayId);
             setDays(newDays);
             if (activeDayId === dayId && newDays.length > 0) setActiveDayId(newDays[0].id);
@@ -168,7 +168,7 @@ const ProgramManager = () => {
         
         // Eğer hiç gün yoksa adamı uyar
         if (days.length === 0) {
-            alert("Lan amq önce bir 'Yeni Gün Ekle' butonuna basıp gün oluştursana!");
+            alert("Önce'Yeni Gün Ekle' butonuna basıp gün oluştur!");
             return;
         }
 
@@ -223,10 +223,10 @@ const ProgramManager = () => {
             };
 
             await api.post(`/Admin/members/${id}/workout-program`, payload);
-            alert("Helal lan! Bütün antrenman programı SQL'e mermi gibi zımbalandı!");
+            alert("Antrenman Programı Kaydedildi!");
         } catch (err) {
             console.error("C#'TAN GELEN ASIL HATA:", err.response?.data);
-            alert("Dayı kayıt patladı! F12 Console'da 'C#'TAN GELEN ASIL HATA' kısmına bak, ne diyorsa bana fırlat.");
+            alert("Dayı kayıt patladı! F12 Console'da 'C#'TAN GELEN ASIL HATA' kısmına bak.");
         }
     };
 
@@ -256,7 +256,7 @@ const ProgramManager = () => {
     };
 
     const deleteMeal = (id) => {
-        if (window.confirm("Bu öğünü listeden uçuruyoruz, emin misin dayı?")) {
+        if (window.confirm("Bu öğünü listeden çıkarıyorz, emin misin?")) {
             setMeals(meals.filter(m => m.id !== id));
         }
     };
@@ -321,7 +321,7 @@ const ProgramManager = () => {
                                                 {isActive && (
                                                     <div style={styles.dayBody}>
                                                         {day.exercises.length === 0 ? (
-                                                            <p style={{ color: '#666', fontSize: '0.9rem', margin: 0, textAlign: 'center', padding: '10px 0' }}>Henüz hareket eklenmedi amq, sağdan seç.</p>
+                                                            <p style={{ color: '#666', fontSize: '0.9rem', margin: 0, textAlign: 'center', padding: '10px 0' }}>Henüz hareket eklenmedi, sağdan seçin.</p>
                                                         ) : (
                                                             day.exercises.map(ex => (
                                                                 <div key={ex.uniqueId} style={styles.exerciseItem}>
@@ -405,7 +405,7 @@ const ProgramManager = () => {
                             <div style={styles.mealList}>
                                 {meals.length === 0 ? (
                                     <div style={{ textAlign: 'center', padding: '40px', color: '#666', backgroundColor: '#151515', borderRadius: '10px' }}>
-                                        Adam açlıktan ölecek emmoğlu, bir şeyler yaz şuraya!
+                                        Adam açlıktan ölecek, bir şeyler ekleyin şuraya!
                                     </div>
                                 ) : (
                                     meals.sort((a, b) => a.time.localeCompare(b.time)).map(meal => (
@@ -470,7 +470,7 @@ const ProgramManager = () => {
                             <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                                 <button type="button" onClick={() => setShowWorkoutModal(false)} style={{ flex: 1, padding: '10px', backgroundColor: '#333', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>İptal</button>
                                 <button type="submit" style={{ flex: 1, padding: '10px', backgroundColor: '#d90429', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
-                                    {editingExercise ? 'Değişiklikleri Kaydet' : 'Güne Zımbala'}
+                                    {editingExercise ? 'Değişiklikleri Kaydet' : 'Güne Ekle'}
                                 </button>
                             </div>
                         </form>
@@ -507,7 +507,7 @@ const ProgramManager = () => {
                                     style={{...styles.input, height: '120px', resize: 'vertical'}} 
                                     required 
                                     onChange={e => setDietForm({...dietForm, content: e.target.value})} 
-                                    placeholder="4 yumurta, 100gr pirinç lapası..."
+                                    placeholder="Bu Öğünde Yenecekler..."
                                 />
                             </div>
 

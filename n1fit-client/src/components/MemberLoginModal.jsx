@@ -21,7 +21,7 @@ const MemberLoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
             onLoginSuccess();
             onClose();
         } catch (err) {
-            setError('Giriş patladı dayı! Bilgileri kontrol et.');
+            setError('Şifre Veya E-posta Yanlış!');
         }
     };
 

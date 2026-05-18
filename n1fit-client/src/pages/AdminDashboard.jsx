@@ -116,12 +116,12 @@ const AdminDashboard = () => {
 
     // YENİ: Sil Butonuna Basınca Acımadan Şutla
     const handleDeleteClick = async (id) => {
-        if (window.confirm("Bu adamı dükkandan kalıcı olarak siliyoruz, emin misin dayıoğlu?")) {
+        if (window.confirm("Bu adamı dükkandan kalıcı olarak siliyoruz, emin misin?")) {
             try {
                 await api.delete(`/Admin/delete-member/${id}`); // C#'ta bu uç yoksa patlarsın haberin olsun!
                 fetchMembers();
             } catch (err) {
-                alert("Silerken patladık amq! C# tarafını kontrol et.");
+                alert("Silerken patladık! C# tarafını kontrol et.");
             }
         }
     };
@@ -138,11 +138,11 @@ const AdminDashboard = () => {
             if (editingMemberId) {
                 // Adamı güncelliyoruz (C#'ta update-member ucu olmalı)
                 await api.put(`/Admin/update-member/${editingMemberId}`, payload);
-                alert("Canavarın bilgileri zımba gibi güncellendi!");
+                alert("Üye bilgileri güncellendi!");
             } else {
                 // Yeni adam ekliyoruz
                 await api.post('/Admin/add-member', payload);
-                alert("Yeni canavar dükkana eklendi!");
+                alert("Yeni üye dükkana eklendi!");
             }
 
             setShowModal(false);
@@ -152,7 +152,7 @@ const AdminDashboard = () => {
         }
     };
     const handlePayDebt = async () => {
-        if (!paymentAmount || paymentAmount <= 0) return alert("Ulan adam gibi rakam gir amq!");
+        if (!paymentAmount || paymentAmount <= 0) return alert("Düzgün rakam gir!");
         try {
             // PARAYI ÇIPLAK DEĞİL, KUTUYA KOYUP YOLLUYORUZ:
             const payload = {
@@ -161,7 +161,7 @@ const AdminDashboard = () => {
 
             await api.post(`/Admin/members/${selectedMember.id}/pay-debt`, payload);
 
-            alert("Borçtan düşüldü, kasa ferahladı emmoğlu!");
+            alert("Borçtan düşüldü!");
             setShowPayDebtModal(false);
             setPaymentAmount('');
             fetchMembers(); // Tabloyu ve borcu ekranda anında tazele!
@@ -208,7 +208,7 @@ const AdminDashboard = () => {
         <div style={styles.container}>
             <div style={styles.main}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h2 style={{ color: 'var(--n1fit-red)' }}>N1FIT PROFESYONEL YÖNETİM</h2>
+                    <h2 style={{ color: 'var(--n1fit-red)' }}>N1FIT YÖNETİM</h2>
                     <button onClick={() => { localStorage.removeItem('n1fit_token'); window.location.href = '/login' }} style={styles.logoutBtn}>
                         <LogOut size={18} /> Çıkış
                     </button>
@@ -339,7 +339,7 @@ const AdminDashboard = () => {
                                     </tr>
                                 );
                             }) : (
-                                <tr><td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#666' }}>Kayıt bulunamadı kral.</td></tr>
+                                <tr><td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#666' }}>Kayıt bulunamadı.</td></tr>
                             )}
                         </tbody>
                     </table>
@@ -381,7 +381,7 @@ const AdminDashboard = () => {
 
                                     <label style={styles.smallLabel}>Üyelik Paketi Seç:</label>
                                     <select style={styles.modalInput} value={formData.packageId} onChange={e => setFormData({ ...formData, packageId: e.target.value })} required>
-                                        <option value="">Paket Seç Dayı...</option>
+                                        <option value="">Paket Seç...</option>
                                         {packages.map(p => (
                                             <option key={p.id || p.Id} value={p.id || p.Id}>{p.name || p.Name} - {p.price || p.Price} TL</option>
                                         ))}

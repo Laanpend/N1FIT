@@ -86,11 +86,11 @@ const MemberDetail = () => {
             if (editingMeasurement) {
                 const targetId = editingMeasurement.id || editingMeasurement.Id;
                 await api.put(`/Admin/measurements/${targetId}`, measForm);
-                alert("Ölçüler aslanlar gibi güncellendi!");
+                alert("Ölçüler güncellendi!");
                 setEditingMeasurement(null);
             } else {
                 await api.post(`/Admin/member/${id}/measurements`, measForm);
-                alert("Yeni ölçüler dükkana hayırlı olsun!");
+                alert("Yeni ölçüler hayırlı olsun!");
             }
             setMeasForm({ weight: '', shoulder: '', chest: '', leftArm: '', rightArm: '', waist: '', neck: '' });
             loadData();
@@ -101,7 +101,7 @@ const MemberDetail = () => {
         if (window.confirm("Bu ölçüyü tarihten siliyoruz, onaylıyor musun?")) {
             try {
                 await api.delete(`/Admin/measurements/${measurementId}`);
-                alert("Ölçü buharlaştı!");
+                alert("Ölçü silindi!");
                 loadData();
             } catch (err) { console.error("Ölçü silinirken motor yaktık", err); }
         }
@@ -126,11 +126,11 @@ const MemberDetail = () => {
             if (editingDiet) {
                 const targetId = editingDiet.id || editingDiet.Id;
                 await api.put(`/Admin/diet/${targetId}`, dietForm);
-                alert("Öğün aslanlar gibi güncellendi!");
+                alert("Öğün güncellendi!");
                 setEditingDiet(null);
             } else {
                 await api.post(`/Admin/member/${id}/diet`, dietForm);
-                alert("Öğün listeye çakıldı!");
+                alert("Öğün listeye eklendi!");
             }
             setDietForm({ mealName: '', time: '', content: '' });
             loadData(); // PATLAYAN YER BURASIYDI, DÜZELTİLDİ!
@@ -138,10 +138,10 @@ const MemberDetail = () => {
     };
 
     const handleDeleteDiet = async (dietId) => {
-        if (window.confirm("Bu diyeti siktir edip atıyoruz emmoğlu, emin misin?")) {
+        if (window.confirm("Bu diyeti listeden çıkarıyoruz, emin misin?")) {
             try {
                 await api.delete(`/Admin/diet/${dietId}`);
-                alert("Diyet çöpe atıldı!");
+                alert("Diyet silindi!");
                 loadData();
             } catch (err) { console.error("Diyet silinirken patladık", err); }
         }
@@ -165,7 +165,7 @@ const MemberDetail = () => {
             };
             // Makine arkadan sessizce mermiyi sıkar
             await api.post(`/Admin/members/${id}/workout-program`, payload);
-            console.log("Program aslanlar gibi oto-kaydedildi!");
+            console.log("Program oto-kaydedildi!");
         } catch (err) {
             console.error(err);
             alert("Oto-kayıt atarken motor yaktık dayı!");
@@ -174,7 +174,7 @@ const MemberDetail = () => {
 
 
 
-    if (!member) return <div style={{ color: 'white', padding: '50px' }}>Canavar aranıyor...</div>;
+    if (!member) return <div style={{ color: 'white', padding: '50px' }}>Üye aranıyor...</div>;
 
     const getDiff = (current, older, isNegativeBad = false) => {
         if (!older) return null;
@@ -354,7 +354,7 @@ const MemberDetail = () => {
                                         </div>
                                     </div>
                                 ))}
-                                {diets.length === 0 && <div style={{ color: '#666', textAlign: 'center' }}>Henüz diyet eklenmemiş dayıoğlu.</div>}
+                                {diets.length === 0 && <div style={{ color: '#666', textAlign: 'center' }}>Henüz diyet eklenmemiş.</div>}
                             </div>
                         </div>
                     </div>
@@ -367,7 +367,7 @@ const MemberDetail = () => {
                         {/* SOL TARAF: HAREKET VE GÜN EKLEME FORMU */}
                         <div style={styles.card}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                                <h3 style={{ color: '#3b82f6', margin: 0 }}>Programa Hareketi Daya</h3>
+                                <h3 style={{ color: '#3b82f6', margin: 0 }}>Programa Hareketi Ekle</h3>
                                 <button
                                     type="button"
                                     onClick={() => {
@@ -387,7 +387,7 @@ const MemberDetail = () => {
                             </div>
 
                             {workoutProgram.days.length === 0 ? (
-                                <div style={{ color: '#aaa', textAlign: 'center', padding: '20px' }}>Önce yukarıdan 'Yeni Gün Ekle' butonuna bas dayıoğlu!</div>
+                                <div style={{ color: '#aaa', textAlign: 'center', padding: '20px' }}>Önce yukarıdan 'Yeni Gün Ekle' butonuna bas!</div>
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
 
@@ -424,7 +424,7 @@ const MemberDetail = () => {
                                     <button
                                         type="button"
                                         onClick={() => {
-                                            if (!currentAddForm.exerciseId) return alert("Hareketi seçsene amq!");
+                                            if (!currentAddForm.exerciseId) return alert("Hareketi seç!");
                                             const newDays = [...workoutProgram.days];
                                             newDays[selectedDayIndex].exercises.push({ ...currentAddForm });
                                             setWorkoutProgram({ days: newDays });
@@ -435,7 +435,7 @@ const MemberDetail = () => {
                                             autoSaveWorkout(newDays);
                                         }}
                                         style={{ ...styles.submitBtn, backgroundColor: '#3b82f6', color: 'white', marginTop: '10px' }}
-                                    >Hareketi Listeye At</button>
+                                    >Hareketi Listeye Ekle</button>
                                 </div>
                             )}
                         </div>

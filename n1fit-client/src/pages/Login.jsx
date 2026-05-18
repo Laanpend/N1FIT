@@ -47,7 +47,7 @@ const Login = () => {
             navigate('/admin');
             
         } catch (err) {
-            setError('Giriş patladı dayı! Şifreyi veya maili yanlış girdin.');
+            setError('Şifreyi veya maili yanlış girdin.');
         }
     };
 

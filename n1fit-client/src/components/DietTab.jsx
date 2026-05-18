@@ -14,7 +14,7 @@ const DietTab = () => {
     }, []);
 
     if (!dietProgram.meals || dietProgram.meals.length === 0) {
-        return <div style={{ color: '#aaa', textAlign: 'center', marginTop: '50px' }}>Kardeşim sana daha diyet yazılmamış, pilav tavuğa devam!</div>;
+        return <div style={{ color: '#aaa', textAlign: 'center', marginTop: '50px' }}>Aktif Diyetin Bulunmamaktadır!</div>;
     }
 
     return (

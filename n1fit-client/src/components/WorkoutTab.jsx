@@ -22,7 +22,7 @@ const WorkoutTab = () => {
     }, []);
 
     if (!workoutProgram.days || workoutProgram.days.length === 0) {
-        return <div style={{ color: '#aaa', textAlign: 'center', marginTop: '50px' }}>Hocan henüz sana program yazmamış aslanım, git darlamaya başla!</div>;
+        return <div style={{ color: '#aaa', textAlign: 'center', marginTop: '50px' }}>Henüz Programın Yok!</div>;
     }
 
     return (
@@ -83,10 +83,15 @@ const WorkoutTab = () => {
                                                             {ex.incline && <span>Eğim: <b style={{ color: '#4ade80' }}>{ex.incline}</b></span>}
                                                         </div>
                                                     ) : (
-                                                        <>
-                                                            <span>Set: <b style={{ color: '#4ade80' }}>{ex.sets}</b></span>
-                                                            <span>Tekrar: <b style={{ color: '#4ade80' }}>{ex.reps}</b></span>
-                                                        </>
+                                                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                                            {ex.sets && <span>Set: <b style={{ color: '#4ade80' }}>{ex.sets} dk</b></span>}
+                                                            {ex.reps && <span>Tekrar: <b style={{ color: '#4ade80' }}>{ex.reps}</b></span>}
+                                                            {ex.restTime && <span>Dinleme: <b style={{ color: '#4ade80' }}>{ex.restTime} dk</b></span>}
+                                                        </div>
+                                                        // <>
+                                                        //     <span>Set: <b style={{ color: '#4ade80' }}>{ex.sets}</b></span>
+                                                        //     <span>Tekrar: <b style={{ color: '#4ade80' }}>{ex.reps}</b></span>
+                                                        // </>
                                                     )}
                                                 </div>
                                             </div>
