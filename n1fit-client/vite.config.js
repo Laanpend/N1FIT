@@ -10,6 +10,14 @@ export default defineConfig({
       // devOptions: {
       //   enabled: true
       // },
+
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+      },
+      injectRegister: 'auto',
+      strategies: 'injectManifest', // Makineye diyoruz ki: Benim kendi yazdığım bir SW amelem var, onu kullan!
+      srcDir: 'src',
+      filename: 'sw.js',
       includeAssets: ['favicon.svg', 'icons.svg'], // Önbelleğe atılacak demirbaşlar
       manifest: {
         name: 'N1FIT Fitness Dashboard',

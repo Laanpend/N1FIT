@@ -13,5 +13,6 @@ namespace Fitness.Core.Interfaces
         Task<object> GetMyWorkoutAsync(int userId);
         Task<object> GetMyDietAsync(int userId);
         Task<IEnumerable<object>> GetMyMeasurementsAsync(int userId);
+        Task SavePushSubscriptionAsync(int userId, string endpoint, string p256dh, string auth);
     }
 }

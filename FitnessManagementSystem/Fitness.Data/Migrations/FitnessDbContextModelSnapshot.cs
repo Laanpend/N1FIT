@@ -52,7 +52,7 @@ namespace Fitness.Data.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("DietPrograms");
+                    b.ToTable("DietPrograms", (string)null);
                 });
 
             modelBuilder.Entity("Fitness.Core.Entities.Exercise", b =>
@@ -85,7 +85,7 @@ namespace Fitness.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Exercises");
+                    b.ToTable("Exercises", (string)null);
                 });
 
             modelBuilder.Entity("Fitness.Core.Entities.Measurement", b =>
@@ -127,7 +127,7 @@ namespace Fitness.Data.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Measurements");
+                    b.ToTable("Measurements", (string)null);
                 });
 
             modelBuilder.Entity("Fitness.Core.Entities.Package", b =>
@@ -156,7 +156,7 @@ namespace Fitness.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Packages");
+                    b.ToTable("Packages", (string)null);
                 });
 
             modelBuilder.Entity("Fitness.Core.Entities.User", b =>
@@ -207,7 +207,7 @@ namespace Fitness.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("Fitness.Core.Entities.WorkoutDay", b =>
@@ -233,7 +233,7 @@ namespace Fitness.Data.Migrations
 
                     b.HasIndex("WorkoutProgramId");
 
-                    b.ToTable("WorkoutDays");
+                    b.ToTable("WorkoutDays", (string)null);
                 });
 
             modelBuilder.Entity("Fitness.Core.Entities.WorkoutDayExercise", b =>
@@ -279,7 +279,7 @@ namespace Fitness.Data.Migrations
 
                     b.HasIndex("WorkoutDayId");
 
-                    b.ToTable("WorkoutDayExercises");
+                    b.ToTable("WorkoutDayExercises", (string)null);
                 });
 
             modelBuilder.Entity("Fitness.Core.Entities.WorkoutProgram", b =>
@@ -307,7 +307,7 @@ namespace Fitness.Data.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("WorkoutPrograms");
+                    b.ToTable("WorkoutPrograms", (string)null);
                 });
 
             modelBuilder.Entity("Fitness.Core.Entities.DietProgram", b =>

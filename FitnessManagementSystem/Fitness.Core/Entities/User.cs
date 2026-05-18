@@ -30,5 +30,10 @@ namespace Fitness.Core.Entities
 
         public bool IsFrozen { get; set; }
         public DateTime? FreezeDate { get; set; }
+
+        // AHA BİLDİRİM MERMİLERİNİN GİDECEĞİ HEDEF NOKTALARI!
+        public string? PushEndpoint { get; set; }
+        public string? PushP256DH { get; set; }
+        public string? PushAuth { get; set; }
     }
 }

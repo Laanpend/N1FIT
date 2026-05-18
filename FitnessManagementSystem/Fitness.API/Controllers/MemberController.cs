@@ -1,6 +1,8 @@
-﻿using Fitness.Core.Interfaces;
+﻿using Fitness.Core.DTOs;
+using Fitness.Core.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
@@ -59,6 +61,19 @@ namespace Fitness.API.Controllers
 
             var measurements = await _memberService.GetMyMeasurementsAsync(int.Parse(userIdString));
             return Ok(measurements);
+        }
+
+        [HttpPost("save-subscription")]
+        [Authorize]
+        public async Task<IActionResult> SaveSubscription([FromBody] PushSubscriptionDto dto)
+        {
+            var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(userIdStr, out int userId)) return Unauthorized("Kimliksiz adam!");
+
+            // Tertemiz, _context falan yok! Direkt senin service'i kullanıyoruz.
+            await _memberService.SavePushSubscriptionAsync(userId, dto.Endpoint, dto.P256dh, dto.Auth);
+
+            return Ok(new { message = "Hedef kilitlendi aslanım, namlu hazır!" });
         }
     }
 }

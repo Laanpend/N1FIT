@@ -1,12 +1,15 @@
-﻿using Fitness.Core.Entities;
+﻿using AutoMapper.Execution;
+using Fitness.Core.Entities;
 using Fitness.Core.Enums;
 using Fitness.Core.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using WebPush;
 
 namespace Fitness.Service.Service
 {
@@ -14,11 +17,12 @@ namespace Fitness.Service.Service
     {
         private readonly IGenericRepository<User> _userRepository;
         private readonly IUnitOfWork _unitOfWork;
-
-        public JobService(IGenericRepository<User> userRepository, IUnitOfWork unitOfWork)
+        private readonly IConfiguration _configuration;
+        public JobService(IGenericRepository<User> userRepository, IUnitOfWork unitOfWork, IConfiguration configuration)
         {
             _userRepository = userRepository;
             _unitOfWork = unitOfWork;
+            _configuration = configuration;
         }
 
         // Üyeliği bitenleri kontrol et ve (şimdilik) log at
@@ -31,8 +35,27 @@ namespace Fitness.Service.Service
 
             foreach (var user in usersToNotify)
             {
-                // Burada yarın bir gün SMS veya Mail metotlarını çağıracağız
-                Console.WriteLine($"N1FIT BİLGİ: {user.FirstName} {user.LastName} üyeliği 5 gün sonra bitiyor!");
+                if (!string.IsNullOrEmpty(user.PushEndpoint))
+                {
+                    var pushSubscription = new WebPush.PushSubscription(user.PushEndpoint, user.PushP256DH, user.PushAuth);
+                    var vapidDetails = new WebPush.VapidDetails(
+                        _configuration["VapidDetails:Subject"],
+                        _configuration["VapidDetails:PublicKey"],
+                        _configuration["VapidDetails:PrivateKey"]
+                    );
+
+                    var webPushClient = new WebPush.WebPushClient();
+                    var payload = "{\"title\":\"AİDAT ZAMANI ASLANIM!\",\"message\":\"Paketinin süresi doluyor veya doldu. Kapıda rezil olma, gir aidatını öde!\",\"url\":\"/membership\"}";
+
+                    try
+                    {
+                        webPushClient.SendNotification(pushSubscription, payload, vapidDetails);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Bildirim patladı amq: {ex.Message}");
+                    }
+                }
             }
         }
 

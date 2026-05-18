@@ -8,6 +8,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Fitness.Core.DTOs.Fitness.Core.DTOs;
+using Fitness.Data.UnitOfWork;
 
 namespace Fitness.Service.Service
 {
@@ -18,6 +19,7 @@ namespace Fitness.Service.Service
         private readonly IGenericRepository<DietProgram> _dietRepository;
         private readonly IGenericRepository<Measurement> _measurementRepository;
         private readonly IGenericRepository<WorkoutDayExercise> _workoutDayExerciseRepository;
+        private readonly IUnitOfWork _unitOfWork;
         // Eğer antrenman repounun adı farklıysa (örn: WorkoutProgram) onu ekle:
         // private readonly IGenericRepository<Exercise> _exerciseRepository; 
 
@@ -26,13 +28,15 @@ namespace Fitness.Service.Service
             IGenericRepository<MembershipPackage> packageRepository,
             IGenericRepository<DietProgram> dietRepository,
             IGenericRepository<Measurement> measurementRepository,
-            IGenericRepository<WorkoutDayExercise> workoutDayExerciseRepository)
+            IGenericRepository<WorkoutDayExercise> workoutDayExerciseRepository,
+            IUnitOfWork unitOfWork)
         {
             _userRepository = userRepository;
             _packageRepository = packageRepository;
             _dietRepository = dietRepository;
             _measurementRepository = measurementRepository;
             _workoutDayExerciseRepository = workoutDayExerciseRepository;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<MemberProfileDto> GetMyProfileAsync(int userId)
@@ -219,6 +223,20 @@ namespace Fitness.Service.Service
                 })
                 .AsNoTracking()
                 .ToListAsync();
+        }
+        public async Task SavePushSubscriptionAsync(int userId, string endpoint, string p256dh, string auth)
+        {
+            // Senin repository yapınla adamı buluyoruz
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user != null)
+            {
+                user.PushEndpoint = endpoint;
+                user.PushP256DH = p256dh;
+                user.PushAuth = auth;
+
+                _userRepository.Update(user);
+                await _unitOfWork.CommitAsync();
+            }
         }
     }
 }
