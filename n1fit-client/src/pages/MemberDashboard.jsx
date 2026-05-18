@@ -328,7 +328,7 @@ const MemberDashboard = () => {
 
                             {/* İLETİŞİM / FOOTER */}
                             <footer style={styles.footer}>
-                                <div style={styles.footerLogo}>FIT<span style={{color:'#d90429'}}>N1</span></div>
+                                <div style={styles.footerLogo}><span style={{color:'#d90429'}}>N1</span>FIT</div>
                                 <p style={styles.footerText}>Bahanelere yer yok, sadece sonuç var!</p>
                                 
                                 <div style={styles.contactInfo}>
