@@ -330,14 +330,26 @@ const MemberDashboard = () => {
 
     // --- SENİN SALON VE PAKET FOTOLARI BURAYA GELECEK DAYI! ---
     const gymImages = [
-        "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=2070",
-        "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=2070",
-        "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=2070"
+        "n1fit-client/SalonunFotolari/WhatsApp Image 2026-05-18 at 14.01.47.jpeg",
+        "n1fit-client/SalonunFotolari/WhatsApp Image 2026-05-18 at 14.01.48.jpeg",
+        "n1fit-client/SalonunFotolari/WhatsApp Image 2026-05-18 at 14.01.50 (1).jpeg",
+        "n1fit-client/SalonunFotolari/WhatsApp Image 2026-05-18 at 14.01.50.jpeg",
+        "n1fit-client/SalonunFotolari/WhatsApp Image 2026-05-18 at 14.01.51 (1).jpeg",
+        "n1fit-client/SalonunFotolari/WhatsApp Image 2026-05-18 at 14.01.51 (2).jpeg",
+        "n1fit-client/SalonunFotolari/WhatsApp Image 2026-05-18 at 14.01.51 (3).jpeg",
+        "n1fit-client/SalonunFotolari/WhatsApp Image 2026-05-18 at 14.01.51 (4).jpeg",
+        "n1fit-client/SalonunFotolari/WhatsApp Image 2026-05-18 at 14.01.51 (5).jpeg",
+        "n1fit-client/SalonunFotolari/WhatsApp Image 2026-05-18 at 14.01.51.jpeg"
     ];
     
     const packageImages = [
-        "https://images.unsplash.com/photo-1593079831268-3381b0c42388?q=80&w=2069", // Örnek paket 1
-        "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=2070"  // Örnek paket 2
+        "n1fit-client/PaketlerinFotolari/WhatsApp Image 2026-05-18 at 14.02.11 (1).jpeg",
+        "n1fit-client/PaketlerinFotolari/WhatsApp Image 2026-05-18 at 14.02.11 (2).jpeg",
+        "n1fit-client/PaketlerinFotolari/WhatsApp Image 2026-05-18 at 14.02.11 (3).jpeg",
+        "n1fit-client/PaketlerinFotolari/WhatsApp Image 2026-05-18 at 14.02.11 (4).jpeg",
+        "n1fit-client/PaketlerinFotolari/WhatsApp Image 2026-05-18 at 14.02.11 (5).jpeg",
+        "n1fit-client/PaketlerinFotolari/WhatsApp Image 2026-05-18 at 14.02.11.jpeg"
+
     ];
 
     const parseJwt = (token) => {
