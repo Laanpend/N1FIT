@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
     PlayCircle, Calendar, Clock, AlertTriangle, Snowflake,
     LogOut, Dumbbell, Activity, MapPin, Phone, Target,
-    ShieldCheck, CheckCircle, ChevronRight, ChevronLeft, Zap, Instagram
+    ShieldCheck, CheckCircle, ChevronRight, ChevronLeft, Zap
 } from 'lucide-react';
 import api from '../api/axiosConfig';
 import Navbar from '../components/Navbar';
@@ -342,7 +342,11 @@ const MemberDashboard = () => {
                                     </div>
                                     <a href="https://www.instagram.com/n1fitspormerkezi/" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
                                         <div style={{ ...styles.contactItem, cursor: 'pointer', transition: '0.3s', border: '1px solid #d90429' }}>
-                                            <Instagram size={24} color="#d90429" />
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d90429" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                                                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                                                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                                                </svg>
                                             <span style={{ color: '#fff', fontWeight: 'bold', letterSpacing: '1px' }}>@n1fitspormerkezi</span>
                                         </div>
                                     </a>
