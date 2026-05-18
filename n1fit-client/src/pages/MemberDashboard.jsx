@@ -179,13 +179,13 @@ const MemberDashboard = () => {
 
                     {activeTab === 'home' && (
                         <div style={styles.landingContainer}>
+                            {/* BURASI GİRİŞ YAPMAYANIN GÖRECEĞİ VİTRİN */}
+                            <h1 style={styles.heroTitle}>DÜZCE'NİN EN SERT SALONU: N1FIT</h1>
                             <button
                                 onClick={handleEnableNotifications}
                                 className="bg-red-600 text-white font-bold py-2 px-4 rounded mt-4">
                                 BİLDİRİMLERİ AÇ
                             </button>
-                            {/* BURASI GİRİŞ YAPMAYANIN GÖRECEĞİ VİTRİN */}
-                            <h1 style={styles.heroTitle}>DÜZCE'NİN EN SERT SALONU: N1FIT</h1>
                             <div style={styles.sliderMock}>
                                 {/* Buraya bir Slider bileşeni veya fiyakalı salon fotoları gelecek amq */}
                                 <img src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=2070" style={styles.sliderImg} />
