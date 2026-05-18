@@ -140,4 +140,10 @@ app.MapControllers();
 app.UseHangfireDashboard();
 
 // ... gerisi ayný (Hangfire joblarý vs)
+RecurringJob.AddOrUpdate<JobService>(
+    "uyelik-bitis-bildirimi", // Görevin fiyakalý adý
+    service => service.CheckExpiringSubscriptions(), // Senin yazdýðýn bildirim atan o jilet metod
+    Cron.Daily(9) // Her sabah saat 09:00'da çalýþýr! Ýstersen Cron.Daily() yap gece 12'de çalýþsýn.
+);
+
 app.Run();

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-    PlayCircle, Calendar, Clock, AlertTriangle, Snowflake, 
-    LogOut, Dumbbell, Activity, MapPin, Phone, Target, 
-    ShieldCheck, CheckCircle, ChevronRight, ChevronLeft, Zap
+import {
+    PlayCircle, Calendar, Clock, AlertTriangle, Snowflake,
+    LogOut, Dumbbell, Activity, MapPin, Phone, Target,
+    ShieldCheck, CheckCircle, ChevronRight, ChevronLeft, Zap, Instagram
 } from 'lucide-react';
 import api from '../api/axiosConfig';
 import Navbar from '../components/Navbar';
@@ -56,15 +56,15 @@ const AutoSlider = ({ images }) => {
             {/* FOTOLARIN YUMUŞAK GEÇİŞ (FADE) KISMI */}
             <div style={styles.sliderImageWrapper}>
                 {images.map((img, idx) => (
-                    <img 
+                    <img
                         key={idx}
-                        src={img} 
-                        alt={`N1FIT Foto ${idx}`} 
+                        src={img}
+                        alt={`N1FIT Foto ${idx}`}
                         style={{
                             ...styles.sliderImage,
-                            opacity: idx === currentIndex ? 1 : 0, 
-                            transition: 'opacity 0.8s ease-in-out' 
-                        }} 
+                            opacity: idx === currentIndex ? 1 : 0,
+                            transition: 'opacity 0.8s ease-in-out'
+                        }}
                     />
                 ))}
             </div>
@@ -77,15 +77,15 @@ const AutoSlider = ({ images }) => {
             {/* ALT KISIMDAKİ NOKTALAR */}
             <div style={styles.sliderDots}>
                 {images.map((_, idx) => (
-                    <div 
-                        key={idx} 
+                    <div
+                        key={idx}
                         onClick={() => setCurrentIndex(idx)}
                         style={{
-                            ...styles.dot, 
+                            ...styles.dot,
                             backgroundColor: idx === currentIndex ? '#d90429' : 'rgba(255,255,255,0.3)',
                             cursor: 'pointer',
-                            transform: idx === currentIndex ? 'scale(1.2)' : 'scale(1)' 
-                        }} 
+                            transform: idx === currentIndex ? 'scale(1.2)' : 'scale(1)'
+                        }}
                     />
                 ))}
             </div>
@@ -100,12 +100,12 @@ const MemberDashboard = () => {
     const [activeTab, setActiveTab] = useState('home');
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-    
+
     // Adam önceden bildirim izni vermiş mi diye tarayıcının beynini okuyan motor!
     const [isNotifyGranted, setIsNotifyGranted] = useState(
         'Notification' in window ? Notification.permission === 'granted' : false
     );
-    
+
     // BİLDİRİM ŞİFRESİ
     const PUBLIC_VAPID_KEY = "BGme68ndHvhXyZ8dtnIIcsE89ELVrcXIaiDNrA4zACgknZbOaCPL9ny1E6qlo7MoNr22EhFqv8NdFVMnw3V6hhY";
 
@@ -126,7 +126,7 @@ const MemberDashboard = () => {
         "/SalonunFotolari/Salon9.jpeg",
         "/SalonunFotolari/Salon10.jpeg"
     ];
-    
+
     const packageImages = [
         "/PaketlerinFotolari/Paket1.jpeg",
         "/PaketlerinFotolari/Paket2.jpeg",
@@ -186,7 +186,7 @@ const MemberDashboard = () => {
 
     const handleLogout = () => {
         localStorage.removeItem('n1fit_token');
-        window.location.href = '/'; 
+        window.location.href = '/';
     };
 
     const handleEnableNotifications = async () => {
@@ -195,9 +195,9 @@ const MemberDashboard = () => {
                 const swReg = await navigator.serviceWorker.ready;
                 const permission = await Notification.requestPermission();
                 if (permission === 'granted') {
-                    
+
                     setIsNotifyGranted(true); // İzin verildiği an butonu patlatır!
-                    
+
                     const subscription = await swReg.pushManager.subscribe({
                         userVisibleOnly: true,
                         applicationServerKey: urlB64ToUint8Array(PUBLIC_VAPID_KEY)
@@ -234,7 +234,7 @@ const MemberDashboard = () => {
                 />
 
                 <div style={{ padding: '0 20px', paddingBottom: '80px' }}>
-                    
+
                     {/* BİLDİRİMLERİ AÇ BUTONU (Sadece Login olan ve izni OLMAYAN godoşlar görür) */}
                     {isLoggedIn && !isNotifyGranted && (
                         <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px', marginBottom: '20px' }}>
@@ -247,8 +247,8 @@ const MemberDashboard = () => {
                     {/* VİTRİN KISMI (ANA SAYFA / LANDING PAGE) */}
                     {activeTab === 'home' && (
                         <div style={styles.landingContainer}>
-                            
-                            <h1 style={styles.heroTitle}>N1<span style={{color: '#d90429'}}>FIT</span> SPOR MERKEZİ</h1>
+
+                            <h1 style={styles.heroTitle}>N1<span style={{ color: '#d90429' }}>FIT</span> SPOR MERKEZİ</h1>
                             <p style={styles.heroSubtitle}>Bilimin, Disiplinin ve 15 Yıllık Tecrübenin Buluştuğu Yer</p>
 
                             {/* SALON FOTOLARI (SLIDER 1) */}
@@ -263,7 +263,7 @@ const MemberDashboard = () => {
                                 <p style={styles.paragraph}>
                                     Fitness trendlerini değil, <strong>biyomekanik kuralları</strong> ve kanıtlanmış antrenman stratejilerini temel alıyoruz. Hedefiniz ne olursa olsun, burada tesadüflere yer yok; tamamen size özel, planlı ve profesyonel bir süreç var.
                                 </p>
-                                
+
                                 <div style={styles.missionGrid}>
                                     <div style={styles.missionCard}>
                                         <Target size={40} color="#d90429" />
@@ -293,24 +293,24 @@ const MemberDashboard = () => {
                             <h2 style={styles.sectionTitle}>HİZMETLERİMİZ</h2>
                             <div style={styles.servicesGrid}>
                                 <div style={styles.serviceCard}>
-                                    <Dumbbell size={40} color="#d90429" style={{marginBottom:'15px'}} />
+                                    <Dumbbell size={40} color="#d90429" style={{ marginBottom: '15px' }} />
                                     <h4>Fitness & Bodybuilding</h4>
                                     <p>Sadece ağırlık kaldırmayın, vücudunuzu yönetin. Hedeflerinize (kas kütlesi, yağ yakımı) bilimsel araştırmalar ve form analizleriyle en güvenli yoldan ulaşın.</p>
                                 </div>
                                 <div style={styles.serviceCard}>
-                                    <Zap size={40} color="#d90429" style={{marginBottom:'15px'}} />
+                                    <Zap size={40} color="#d90429" style={{ marginBottom: '15px' }} />
                                     <h4>Pilates Studio</h4>
                                     <p>Postür (duruş) bozukluklarını gidermek, core bölgenizi güçlendirmek ve esneklik kazanmak için modern pilates metodolojisi. Zihin ve beden uyumunu keşfedin.</p>
                                 </div>
                                 <div style={styles.serviceCard}>
-                                    <ShieldCheck size={40} color="#d90429" style={{marginBottom:'15px'}} />
+                                    <ShieldCheck size={40} color="#d90429" style={{ marginBottom: '15px' }} />
                                     <h4>Kişiye Özel Beslenme</h4>
                                     <p>Sürdürülemez diyetleri çöpe atın. Kilonuz, metabolizma hızınız ve rutininize göre tamamen size özel optimize edilmiş beslenme planı ve sıkı takip.</p>
                                 </div>
                             </div>
 
                             {/* PAKETLER VE FİYATLAR (SLIDER 2) */}
-                            <h2 style={styles.sectionTitle} style={{marginTop: '60px'}}>PAKETLERİMİZ</h2>
+                            <h2 style={styles.sectionTitle} style={{ marginTop: '60px' }}>PAKETLERİMİZ</h2>
                             <AutoSlider images={packageImages} />
 
                             {/* CALL TO ACTION (Ateşleme Butonları) */}
@@ -328,18 +328,24 @@ const MemberDashboard = () => {
 
                             {/* İLETİŞİM / FOOTER */}
                             <footer style={styles.footer}>
-                                <div style={styles.footerLogo}><span style={{color:'#d90429'}}>N1</span>FIT</div>
+                                <div style={styles.footerLogo}><span style={{ color: '#d90429' }}>N1</span>FIT</div>
                                 <p style={styles.footerText}>Bahanelere yer yok, sadece sonuç var!</p>
-                                
+
                                 <div style={styles.contactInfo}>
                                     <div style={styles.contactItem}>
-                                        <Phone size={20} color="#d90429"/> 
+                                        <Phone size={20} color="#d90429" />
                                         <span>539 607 81 55 &nbsp; | &nbsp; 535 049 54 81</span>
                                     </div>
                                     <div style={styles.contactItem}>
-                                        <MapPin size={20} color="#d90429"/> 
-                                        <span>Kültür Mahallesi, Yavuz Selim Sokak No:8 <br/> Gölyaka / Düzce</span>
+                                        <MapPin size={20} color="#d90429" />
+                                        <span>Kültür Mahallesi, Yavuz Selim Sokak No:8 <br /> Gölyaka / Düzce</span>
                                     </div>
+                                    <a href="https://www.instagram.com/n1fitspormerkezi/" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                                        <div style={{ ...styles.contactItem, cursor: 'pointer', transition: '0.3s', border: '1px solid #d90429' }}>
+                                            <Instagram size={24} color="#d90429" />
+                                            <span style={{ color: '#fff', fontWeight: 'bold', letterSpacing: '1px' }}>@n1fitspormerkezi</span>
+                                        </div>
+                                    </a>
                                 </div>
                                 <div style={styles.copyright}>
                                     © 2026 N1FIT Spor Merkezi. Tüm Hakları Saklıdır.
@@ -359,7 +365,7 @@ const MemberDashboard = () => {
                     onClose={() => setIsLoginModalOpen(false)}
                     onLoginSuccess={() => {
                         setIsLoggedIn(true);
-                        window.location.reload(); 
+                        window.location.reload();
                     }}
                 />
             </div>
@@ -376,7 +382,7 @@ const styles = {
     landingContainer: { textAlign: 'center', marginTop: '40px', maxWidth: '1000px', margin: '40px auto 0 auto' },
     heroTitle: { fontSize: '3.5rem', fontWeight: '900', color: '#fff', textTransform: 'uppercase', marginBottom: '10px' },
     heroSubtitle: { fontSize: '1.2rem', color: '#aaa', marginBottom: '40px', fontWeight: '600' },
-    
+
     // --- 3:4 ORANLI İPHONE SLIDER TASARIMI ---
     sliderContainer: { position: 'relative', width: '100%', maxWidth: '450px', aspectRatio: '3/4', margin: '0 auto 50px auto', borderRadius: '15px', overflow: 'hidden', boxShadow: '0 0 40px rgba(217, 4, 41, 0.25)', backgroundColor: '#050505' },
     sliderImageWrapper: { width: '100%', height: '100%', position: 'relative' },
@@ -385,7 +391,7 @@ const styles = {
     sliderBtnRight: { position: 'absolute', top: '50%', right: '10px', transform: 'translateY(-50%)', backgroundColor: 'rgba(0, 0, 0, 0.6)', border: 'none', borderRadius: '50%', width: '45px', height: '45px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10, transition: '0.3s' },
     sliderDots: { position: 'absolute', bottom: '15px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '10px', zIndex: 10 },
     dot: { width: '10px', height: '10px', borderRadius: '50%', transition: 'all 0.3s' },
-    
+
     aboutSection: { backgroundColor: '#111', padding: '40px', borderRadius: '15px', border: '1px solid #222', marginBottom: '40px', textAlign: 'left' },
     sectionTitle: { fontSize: '2.2rem', fontWeight: '900', color: '#fff', marginBottom: '25px', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '1px' },
     paragraph: { fontSize: '1.1rem', color: '#bbb', lineHeight: '1.8', marginBottom: '20px' },
