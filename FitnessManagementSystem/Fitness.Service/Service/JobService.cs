@@ -45,7 +45,7 @@ namespace Fitness.Service.Service
                     );
 
                     var webPushClient = new WebPush.WebPushClient();
-                    var payload = "{\"title\":\"AİDAT ZAMANI ASLANIM!\",\"message\":\"Paketinin süresi doluyor veya doldu. Kapıda rezil olma, gir aidatını öde!\",\"url\":\"/membership\"}";
+                    var payload = "{\"title\":\"ÜYELİĞİN BİTİYOR!\",\"message\":\"Üyeliğinizin Bitmesine 5 Gün Kaldı.\",\"url\":\"/membership\"}";
 
                     try
                     {
@@ -53,7 +53,7 @@ namespace Fitness.Service.Service
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Bildirim patladı amq: {ex.Message}");
+                        Console.WriteLine($"Bildirim patladı: {ex.Message}");
                     }
                 }
             }

@@ -9,6 +9,17 @@ import MeasurementTab from '../components/MeasurementTab';
 import MembershipTab from '../components/MembershipTab';
 import MemberLoginModal from '../components/MemberLoginModal';
 
+function urlB64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
 const MemberDashboard = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
@@ -17,6 +28,8 @@ const MemberDashboard = () => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [memberData, setMemberData] = useState(null);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    // Senin VAPID Public Key'in (appsettings.json'a ne yazdıysan buraya da onu koyacaksın amq!)
+    const PUBLIC_VAPID_KEY = "BGme68ndHvhXyZ8dtnIIcsE89ELVrcXIaiDNrA4zACgknZbOaCPL9ny1E6qlo7MoNr22EhFqv8NdFVMnw3V6hhY";
 
     // Müşterinin tüm bilgilerini tutacağımız state
     const [profile, setProfile] = useState(null);
@@ -31,7 +44,7 @@ const MemberDashboard = () => {
         try {
             const base64Url = token.split('.')[1];
             const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-            const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+            const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
                 return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
             }).join(''));
             return JSON.parse(jsonPayload);
@@ -49,7 +62,7 @@ const MemberDashboard = () => {
             if (userRole === 'Admin') {
                 setIsLoggedIn(true);
                 setLoading(false); // Admin'se yüklemeyi kes, vitrini aç
-                return; 
+                return;
             }
 
             // Aslan parçası müşteriyse verisini çek (fetchMyData zaten API'ye gidip loading'i false yapar)
@@ -110,6 +123,42 @@ const MemberDashboard = () => {
         return dateStr.split('T')[0];
     };
 
+    const handleEnableNotifications = async () => {
+        if ('serviceWorker' in navigator && 'PushManager' in window) {
+            try {
+                // Amele motorun (sw.js) hazır mı diye bak
+                const swReg = await navigator.serviceWorker.ready;
+
+                // Adama "İzin veriyor musun?" diye sor
+                const permission = await Notification.requestPermission();
+
+                if (permission === 'granted') {
+                    // Tarayıcıdan adamın telefon adresini (Endpoint) kopar
+                    const subscription = await swReg.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlB64ToUint8Array(PUBLIC_VAPID_KEY)
+                    });
+
+                    // C#'a mermiyi yolla! (Senin kendi api/axiosConfig import'unu kullan)
+                    const subJSON = subscription.toJSON();
+                    await api.post('/Member/save-subscription', {
+                        endpoint: subJSON.endpoint,
+                        p256dh: subJSON.keys.p256dh,
+                        auth: subJSON.keys.auth
+                    });
+
+                    alert("Bildirimler Aktif!");
+                } else {
+                    alert("Aktif Ederseniz Üyeliğiniz Bitmeden Haberdar Olursunuz!");
+                }
+            } catch (error) {
+                console.error("Bildirim motoru yandı dayı:", error);
+            }
+        } else {
+            alert("Telefonun Veya Tarayıcın Bu Bildirimleri Desteklemiyor, iPhone Kullanıyorsan Olabilir!");
+        }
+    };
+
     // DİYET SİLME OPERASYONU
 
 
@@ -117,50 +166,55 @@ const MemberDashboard = () => {
         <div style={styles.container}>
             {/* ÜST MENÜ */}
             <div style={{ backgroundColor: '#050505', minHeight: '100vh', color: 'white' }}>
-            <Navbar 
-                activeTab={activeTab} 
-                setActiveTab={setActiveTab} 
-                isLoggedIn={isLoggedIn} 
-                onLogout={handleLogout} 
-                onOpenLogin={() => setIsLoginModalOpen(true)}
-            />
+                <Navbar
+                    activeTab={activeTab}
+                    setActiveTab={setActiveTab}
+                    isLoggedIn={isLoggedIn}
+                    onLogout={handleLogout}
+                    onOpenLogin={() => setIsLoginModalOpen(true)}
+                />
 
-            <div style={{ padding: '20px' }}>
-                {/* --- SEKMELERE GÖRE İÇERİK --- */}
-                
-                {activeTab === 'home' && (
-                    <div style={styles.landingContainer}>
-                        {/* BURASI GİRİŞ YAPMAYANIN GÖRECEĞİ VİTRİN */}
-                        <h1 style={styles.heroTitle}>DÜZCE'NİN EN SERT SALONU: N1FIT</h1>
-                        <div style={styles.sliderMock}>
-                            {/* Buraya bir Slider bileşeni veya fiyakalı salon fotoları gelecek amq */}
-                            <img src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=2070" style={styles.sliderImg} />
+                <div style={{ padding: '20px' }}>
+                    {/* --- SEKMELERE GÖRE İÇERİK --- */}
+
+                    {activeTab === 'home' && (
+                        <div style={styles.landingContainer}>
+                            <button
+                                onClick={handleEnableNotifications}
+                                className="bg-red-600 text-white font-bold py-2 px-4 rounded mt-4">
+                                BİLDİRİMLERİ AÇ
+                            </button>
+                            {/* BURASI GİRİŞ YAPMAYANIN GÖRECEĞİ VİTRİN */}
+                            <h1 style={styles.heroTitle}>DÜZCE'NİN EN SERT SALONU: N1FIT</h1>
+                            <div style={styles.sliderMock}>
+                                {/* Buraya bir Slider bileşeni veya fiyakalı salon fotoları gelecek amq */}
+                                <img src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=2070" style={styles.sliderImg} />
+                            </div>
+                            <div style={styles.infoSection}>
+                                <h3>Neden Biz?</h3>
+                                <p>Hardcore antrenman, profesyonel ekipman ve jilet gibi diyet listeleri...</p>
+                            </div>
                         </div>
-                        <div style={styles.infoSection}>
-                            <h3>Neden Biz?</h3>
-                            <p>Hardcore antrenman, profesyonel ekipman ve jilet gibi diyet listeleri...</p>
-                        </div>
-                    </div>
-                )}
-                {isLoggedIn && activeTab === 'membership' && <MembershipTab />}
-                {isLoggedIn && activeTab === 'workout' && <WorkoutTab />}
-                {isLoggedIn && activeTab === 'diet' && <DietTab />}
-                {isLoggedIn && activeTab === 'measure' && <MeasurementTab />}
+                    )}
+                    {isLoggedIn && activeTab === 'membership' && <MembershipTab />}
+                    {isLoggedIn && activeTab === 'workout' && <WorkoutTab />}
+                    {isLoggedIn && activeTab === 'diet' && <DietTab />}
+                    {isLoggedIn && activeTab === 'measure' && <MeasurementTab />}
+                </div>
+                <MemberLoginModal
+                    isOpen={isLoginModalOpen}
+                    onClose={() => setIsLoginModalOpen(false)}
+                    onLoginSuccess={() => {
+                        setIsLoggedIn(true);
+                        // Sayfayı yenilemeden direkt adamı içeride gösteriyoruz!
+                        window.location.reload(); // En temizi sayfayı bir kez zımbalamak, state kargaşası olmaz.
+                    }}
+                />
             </div>
-            <MemberLoginModal 
-                isOpen={isLoginModalOpen} 
-                onClose={() => setIsLoginModalOpen(false)} 
-                onLoginSuccess={() => {
-                    setIsLoggedIn(true);
-                    // Sayfayı yenilemeden direkt adamı içeride gösteriyoruz!
-                    window.location.reload(); // En temizi sayfayı bir kez zımbalamak, state kargaşası olmaz.
-                }} 
-            />
         </div>
-    </div>
-            
 
-              
+
+
     );
 };
 
