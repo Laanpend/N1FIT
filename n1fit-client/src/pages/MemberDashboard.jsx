@@ -330,26 +330,25 @@ const MemberDashboard = () => {
 
     // --- SENİN SALON VE PAKET FOTOLARI BURAYA GELECEK DAYI! ---
     const gymImages = [
-        "n1fit-client/SalonunFotolari/WhatsApp Image 2026-05-18 at 14.01.47.jpeg",
-        "n1fit-client/SalonunFotolari/WhatsApp Image 2026-05-18 at 14.01.48.jpeg",
-        "n1fit-client/SalonunFotolari/WhatsApp Image 2026-05-18 at 14.01.50 (1).jpeg",
-        "n1fit-client/SalonunFotolari/WhatsApp Image 2026-05-18 at 14.01.50.jpeg",
-        "n1fit-client/SalonunFotolari/WhatsApp Image 2026-05-18 at 14.01.51 (1).jpeg",
-        "n1fit-client/SalonunFotolari/WhatsApp Image 2026-05-18 at 14.01.51 (2).jpeg",
-        "n1fit-client/SalonunFotolari/WhatsApp Image 2026-05-18 at 14.01.51 (3).jpeg",
-        "n1fit-client/SalonunFotolari/WhatsApp Image 2026-05-18 at 14.01.51 (4).jpeg",
-        "n1fit-client/SalonunFotolari/WhatsApp Image 2026-05-18 at 14.01.51 (5).jpeg",
-        "n1fit-client/SalonunFotolari/WhatsApp Image 2026-05-18 at 14.01.51.jpeg"
+        "/SalonunFotolari/Salon1.jpeg",
+        "/SalonunFotolari/Salon2.jpeg",
+        "/SalonunFotolari/Salon3.jpeg",
+        "/SalonunFotolari/Salon4.jpeg",
+        "/SalonunFotolari/Salon5.jpeg",
+        "/SalonunFotolari/Salon6.jpeg",
+        "/SalonunFotolari/Salon7.jpeg",
+        "/SalonunFotolari/Salon8.jpeg",
+        "/SalonunFotolari/Salon9.jpeg",
+        "/SalonunFotolari/Salon10.jpeg"
     ];
     
     const packageImages = [
-        "n1fit-client/PaketlerinFotolari/WhatsApp Image 2026-05-18 at 14.02.11 (1).jpeg",
-        "n1fit-client/PaketlerinFotolari/WhatsApp Image 2026-05-18 at 14.02.11 (2).jpeg",
-        "n1fit-client/PaketlerinFotolari/WhatsApp Image 2026-05-18 at 14.02.11 (3).jpeg",
-        "n1fit-client/PaketlerinFotolari/WhatsApp Image 2026-05-18 at 14.02.11 (4).jpeg",
-        "n1fit-client/PaketlerinFotolari/WhatsApp Image 2026-05-18 at 14.02.11 (5).jpeg",
-        "n1fit-client/PaketlerinFotolari/WhatsApp Image 2026-05-18 at 14.02.11.jpeg"
-
+        "/PaketlerinFotolari/Paket1.jpeg",
+        "/PaketlerinFotolari/Paket2.jpeg",
+        "/PaketlerinFotolari/Paket3.jpeg",
+        "/PaketlerinFotolari/Paket4.jpeg",
+        "/PaketlerinFotolari/Paket5.jpeg",
+        "/PaketlerinFotolari/Paket6.jpeg"
     ];
 
     const parseJwt = (token) => {
@@ -421,7 +420,7 @@ const MemberDashboard = () => {
                         p256dh: subJSON.keys.p256dh,
                         auth: subJSON.keys.auth
                     });
-                    alert("Bildirimler Aktif! Aidat gelince titreteceğiz.");
+                    alert("Bildirimler Aktif!");
                 } else {
                     alert("Aktif Ederseniz Üyeliğiniz Bitmeden Haberdar Olursunuz!");
                 }
@@ -452,7 +451,7 @@ const MemberDashboard = () => {
                     {isLoggedIn && (
                         <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
                             <button onClick={handleEnableNotifications} style={styles.notifyBtn}>
-                                <AlertTriangle size={20} /> BİLDİRİMLERİ AÇ ASLANIM
+                                <AlertTriangle size={20} /> BİLDİRİMLERİ AÇ
                             </button>
                         </div>
                     )}
@@ -531,12 +530,26 @@ const MemberDashboard = () => {
 
                             {/* 6. CALL TO ACTION (Ateşleme Butonları) */}
                             <div style={styles.ctaContainer}>
-                                <button style={styles.ctaBtnPrimary} onClick={() => setIsLoginModalOpen(true)}>
-                                    Ücretsiz Tanışma Seansı Randevusu Al <ChevronRight />
-                                </button>
-                                <button style={styles.ctaBtnSecondary} onClick={() => setIsLoginModalOpen(true)}>
-                                    Hemen Kaydol, Değişimi Başlat <Zap />
-                                </button>
+                                {/* TIKLANDIĞI AN TELEFONUN ARAMA EKRANINI AÇAR VE NUMARAYI YAZAR ASLANIM! */}
+                                <a href="tel:5396078155" style={{ textDecoration: 'none' }}>
+                                    <button style={styles.ctaBtnPrimary}>
+                                        Ücretsiz Tanışma Seansı Randevusu Al <ChevronRight />
+                                    </button>
+                                </a>
+
+                                {/* BU BUTON ŞİMDİLİK KİLİTLİ, TIKLANAMAZ! ARKA PLANI HAFİF SÖNÜK YAPTIM
+                                <button 
+                                    disabled 
+                                    style={{
+                                        ...styles.ctaBtnSecondary,
+                                        opacity: 0.4,
+                                        cursor: 'not-allowed',
+                                        borderColor: '#444',
+                                        color: '#666'
+                                    }}
+                                >
+                                    Hemen Kaydol, Değişimi Başlat (Çok Yakında) <Zap />
+                                </button> */}
                             </div>
 
                             {/* 7. İLETİŞİM / FOOTER */}
