@@ -1,5 +1,5 @@
 // src/sw.js
-
+import { precacheAndRoute } from 'workbox-precaching';
 // Arka planda Vercel'den veya C#'tan gelen bildirimi yakalayan motor!
 self.addEventListener('push', function(event) {
   if (event.data) {
