@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
     PlayCircle, Calendar, Clock, AlertTriangle, Snowflake, 
     LogOut, Dumbbell, Activity, MapPin, Phone, Target, 
-    ShieldCheck, CheckCircle, ChevronRight, Zap
+    ShieldCheck, CheckCircle, ChevronRight, Zap, ChevronRight, ChevronLeft
 } from 'lucide-react';
 import api from '../api/axiosConfig';
 import Navbar from '../components/Navbar';
@@ -26,36 +26,65 @@ function urlB64ToUint8Array(base64String) {
 }
 
 // ==========================================
-// AMELE MOTORU: KENDİ KENDİNE DÖNEN FOTOĞRAFLAR
+// V8 MOTORLU, YUMUŞAK GEÇİŞLİ SLIDER!
 // ==========================================
 const AutoSlider = ({ images }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
 
+    // Otomatik kayma motoru (Adam elle basınca süre sıfırlansın diye currentIndex'i de ekledik)
     useEffect(() => {
         if (!images || images.length === 0) return;
         const interval = setInterval(() => {
             setCurrentIndex((prev) => (prev + 1) % images.length);
-        }, 3000); // 3 Saniyede bir döner amq!
+        }, 4000); // 4 saniye yaptık, adam fotoğrafa rahat baksın
         return () => clearInterval(interval);
-    }, [images]);
+    }, [images, currentIndex]);
+
+    // Manuel vitesler
+    const nextSlide = () => setCurrentIndex((prev) => (prev + 1) % images.length);
+    const prevSlide = () => setCurrentIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
 
     if (!images || images.length === 0) return null;
 
     return (
         <div style={styles.sliderContainer}>
-            <img 
-                src={images[currentIndex]} 
-                alt="N1FIT Slider" 
-                style={styles.sliderImage} 
-            />
-            {/* Alt kısımdaki fiyakalı noktalar */}
+            {/* SOL OK BUTONU */}
+            <button onClick={prevSlide} style={styles.sliderBtnLeft}>
+                <ChevronLeft size={30} color="white" />
+            </button>
+
+            {/* FOTOLARIN YUMUŞAK GEÇİŞ (FADE) KISMI */}
+            <div style={styles.sliderImageWrapper}>
+                {images.map((img, idx) => (
+                    <img 
+                        key={idx}
+                        src={img} 
+                        alt={`N1FIT Foto ${idx}`} 
+                        style={{
+                            ...styles.sliderImage,
+                            opacity: idx === currentIndex ? 1 : 0, // Sadece sırası gelenin ışığı yanar!
+                            transition: 'opacity 0.8s ease-in-out' // Aha sihirli mermi bu: 0.8 saniyede yağ gibi kayar!
+                        }} 
+                    />
+                ))}
+            </div>
+
+            {/* SAĞ OK BUTONU */}
+            <button onClick={nextSlide} style={styles.sliderBtnRight}>
+                <ChevronRight size={30} color="white" />
+            </button>
+
+            {/* ALT KISIMDAKİ NOKTALAR (Tıklanabilir) */}
             <div style={styles.sliderDots}>
                 {images.map((_, idx) => (
                     <div 
                         key={idx} 
+                        onClick={() => setCurrentIndex(idx)}
                         style={{
                             ...styles.dot, 
-                            backgroundColor: idx === currentIndex ? '#d90429' : '#444'
+                            backgroundColor: idx === currentIndex ? '#d90429' : 'rgba(255,255,255,0.3)',
+                            cursor: 'pointer',
+                            transform: idx === currentIndex ? 'scale(1.2)' : 'scale(1)' // Aktif olan nokta hafif büyür
                         }} 
                     />
                 ))}
@@ -362,10 +391,51 @@ const styles = {
     heroSubtitle: { fontSize: '1.2rem', color: '#aaa', marginBottom: '40px', fontWeight: '600' },
     
     // Slider Tasarımı
-    sliderContainer: { position: 'relative', width: '100%', maxWidth: '900px', margin: '0 auto 50px auto', borderRadius: '15px', overflow: 'hidden', boxShadow: '0 0 40px rgba(217, 4, 41, 0.25)', backgroundColor: '#111' },
-    sliderImage: { width: '100%', height: '600px', objectFit: 'contain', display: 'block', backgroundColor:"#0a0a0a",margin:"0 auto" },
-    sliderDots: { position: 'absolute', bottom: '15px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '10px' },
-    dot: { width: '12px', height: '12px', borderRadius: '50%', transition: '0.3s' },
+    // --- YENİ SLIDER TASARIMI ---
+    sliderContainer: { 
+        position: 'relative', 
+        width: '100%', 
+        maxWidth: '450px', // PC'de eşek kadar olup ekranı kaplamasın diye sınırı çektik
+        aspectRatio: '3/4', // AHA! Tam iPhone dikey fotoğraf oranı (3024x4032 ile birebir aynı)
+        margin: '0 auto 50px auto', 
+        borderRadius: '15px', 
+        overflow: 'hidden', 
+        boxShadow: '0 0 40px rgba(217, 4, 41, 0.25)', 
+        backgroundColor: '#050505' 
+    },
+    sliderImageWrapper: {
+        width: '100%',
+        height: '100%',
+        position: 'relative'
+    },
+    sliderImage: { 
+        position: 'absolute', // Fotoları üst üste bindirdik ki biri kararırken diğeri aydınlansın
+        top: 0,
+        left: 0,
+        width: '100%', 
+        height: '100%', 
+        objectFit: 'cover', // Konteyner zaten 3:4 olduğu için zerre kadar kırpma yapmaz, jilet gibi oturur
+        display: 'block'
+    },
+    sliderBtnLeft: {
+        position: 'absolute', top: '50%', left: '10px', transform: 'translateY(-50%)',
+        backgroundColor: 'rgba(0, 0, 0, 0.6)', border: 'none', borderRadius: '50%',
+        width: '45px', height: '45px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: 'pointer', zIndex: 10, transition: '0.3s'
+    },
+    sliderBtnRight: {
+        position: 'absolute', top: '50%', right: '10px', transform: 'translateY(-50%)',
+        backgroundColor: 'rgba(0, 0, 0, 0.6)', border: 'none', borderRadius: '50%',
+        width: '45px', height: '45px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: 'pointer', zIndex: 10, transition: '0.3s'
+    },
+    sliderDots: { 
+        position: 'absolute', bottom: '15px', left: '50%', transform: 'translateX(-50%)', 
+        display: 'flex', gap: '10px', zIndex: 10 
+    },
+    dot: { 
+        width: '10px', height: '10px', borderRadius: '50%', transition: 'all 0.3s' 
+    },
     
     // Hakkımızda Kısmı
     aboutSection: { backgroundColor: '#111', padding: '40px', borderRadius: '15px', border: '1px solid #222', marginBottom: '40px', textAlign: 'left' },
