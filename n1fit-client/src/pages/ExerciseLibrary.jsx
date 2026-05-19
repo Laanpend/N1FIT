@@ -18,6 +18,9 @@ const ExerciseLibrary = () => {
     const [showModal, setShowModal] = useState(false);
     const [editingExercise, setEditingExercise] = useState(null);
     const navigate = useNavigate(); // BUNU EKLİYORSUN DAYI
+    const [selectedMuscle, setSelectedMuscle] = useState('');
+    // Elimizdeki hareketlerin vücut bölgelerini tekilleştiren motor
+    const muscleGroups = [...new Set(exercises.map(e => e.muscleGroup))].filter(Boolean);
     const [form, setForm] = useState({ name: '', muscleGroup: 'Göğüs', description: '', videoUrl: '' });
 
     useEffect(() => {
