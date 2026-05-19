@@ -65,7 +65,7 @@ builder.Services.AddHangfireServer();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        // C#'a diyoruz ki: "Ayný veriyi tekrar tekrar kendi içinde döndürme amq, bir kere ver çýk!"
+        // C#'a diyoruz ki: "Ayný veriyi tekrar tekrar kendi içinde döndürme, bir kere ver çýk!"
         options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     });
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -123,7 +123,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// 1. ÞASE: BUNU YORUMA AL! Ngrok kullanýrken bu açýk kalýrsa trafiði siktir edip 502 yedirtir!
+// 1. ÞASE: BUNU YORUMA AL! Ngrok kullanýrken bu açýk kalýrsa 502 yedirtir!
 // app.UseHttpsRedirection(); 
 
 app.UseRouting();
@@ -131,7 +131,6 @@ app.UseRouting();
 // CORS ÝZNÝ KESÝNLÝKLE BURADA OLACAK
 app.UseCors("AllowAll");
 
-// 2. ÞASE: AHA BU MERMÝYÝ SÝLMÝÞSÝN AMQ! BUNU EKLEMEZSEN TOKEN KONTROLÜ ÇALIÞMAZ!
 app.UseAuthentication();
 
 app.UseAuthorization();

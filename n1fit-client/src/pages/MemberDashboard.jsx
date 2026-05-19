@@ -490,6 +490,7 @@ const MemberDashboard = () => {
     const [activeTab, setActiveTab] = useState('home');
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    const [vitrinPaketleri, setVitrinPaketleri] = useState([]);
     
     const [isNotifyGranted, setIsNotifyGranted] = useState(
         'Notification' in window ? Notification.permission === 'granted' : false
@@ -503,19 +504,9 @@ const MemberDashboard = () => {
     const [measurements, setMeasurements] = useState([]);
 
     const gymImages = [
-        "/SalonunFotolari/salon1.jpeg", "/SalonunFotolari/salon2.jpeg", "/SalonunFotolari/salon3.jpeg",
-        "/SalonunFotolari/salon4.jpeg", "/SalonunFotolari/salon5.jpeg", "/SalonunFotolari/salon6.jpeg",
-        "/SalonunFotolari/salon7.jpeg", "/SalonunFotolari/salon8.jpeg", "/SalonunFotolari/salon9.jpeg", "/SalonunFotolari/salon10.jpeg"
-    ];
-    
-    // AHA SENİN YENİ ZİGZAG PAKETLERİN! Fiyatları buradan değişirsin.
-    const vitrinPaketleri = [
-        { id: 1, type: "STANDART PAKET", duration: "1 AY", price: "1.500 ₺", features: ["Sınırsız Alet Kullanımı", "Soyunma Odası & Duş", "Serbest Ağırlık Alanı"] },
-        { id: 2, type: "STANDART PAKET", duration: "3 AY", price: "4.000 ₺", features: ["Sınırsız Alet Kullanımı", "Soyunma Odası & Duş", "1 Ücretsiz Ölçüm"] },
-        { id: 3, type: "ÖĞRENCİ PAKET", duration: "1 AY", price: "1.200 ₺", features: ["Sınırsız Kullanım", "Öğrenci Kimliği Şart", "Kardiyo Bölümü"] },
-        { id: 4, type: "ÖĞRENCİ PAKET", duration: "3 AY", price: "3.200 ₺", features: ["Sınırsız Kullanım", "Öğrenci Kimliği Şart", "Kardiyo Bölümü"] },
-        { id: 5, type: "PREMIUM PAKET", duration: "6 AY", price: "7.500 ₺", features: ["VIP Dolap", "Aylık Ölçüm", "Özel Beslenme Programı"] },
-        { id: 6, type: "PREMIUM PAKET", duration: "12 AY", price: "14.000 ₺", features: ["VIP Dolap", "Aylık Ölçüm", "Birebir Takip"] },
+        "/SalonunFotolari/Salon1.jpeg", "/SalonunFotolari/Salon2.jpeg", "/SalonunFotolari/Salon3.jpeg",
+        "/SalonunFotolari/Salon4.jpeg", "/SalonunFotolari/Salon5.jpeg", "/SalonunFotolari/Salon6.jpeg",
+        "/SalonunFotolari/Salon7.jpeg", "/SalonunFotolari/Salon8.jpeg", "/SalonunFotolari/Salon9.jpeg", "/SalonunFotolari/Salon10.jpeg"
     ];
 
     const parseJwt = (token) => {
@@ -527,6 +518,17 @@ const MemberDashboard = () => {
     };
 
     useEffect(() => {
+        const fetchPublicPackages = async () => {
+            try {
+                const res = await api.get('/Member/packages');
+                setVitrinPaketleri(res.data);
+            } catch (err) {
+                console.error("Vitrin paketleri çekilirken motor yandı", err);
+            }
+        };
+        fetchPublicPackages();
+
+        // 2. Token ve Giriş Kontrolleri (Senin eski kodun aynısı)
         const token = localStorage.getItem('n1fit_token');
         if (token) {
             const payload = parseJwt(token);
@@ -563,7 +565,7 @@ const MemberDashboard = () => {
                     const subscription = await swReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8Array(PUBLIC_VAPID_KEY) });
                     const subJSON = subscription.toJSON();
                     await api.post('/Member/save-subscription', { endpoint: subJSON.endpoint, p256dh: subJSON.keys.p256dh, auth: subJSON.keys.auth });
-                    alert("Bildirimler Aktif! Aidat gelince titreteceğiz.");
+                    alert("Bildirimler Aktif!");
                 } else { alert("Aktif Ederseniz Üyeliğiniz Bitmeden Haberdar Olursunuz!"); }
             } catch (error) { console.error("Motor yandı:", error); }
         } else { alert("Telefonun bu bildirimleri desteklemiyor!"); }
@@ -579,7 +581,7 @@ const MemberDashboard = () => {
                 <div style={{ padding: '0 20px', paddingBottom: '80px' }}>
                     {isLoggedIn && !isNotifyGranted && (
                         <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px', marginBottom: '20px' }}>
-                            <button onClick={handleEnableNotifications} style={styles.notifyBtn}><AlertTriangle size={20} /> BİLDİRİMLERİ AÇ ASLANIM</button>
+                            <button onClick={handleEnableNotifications} style={styles.notifyBtn}><AlertTriangle size={20} /> BİLDİRİMLERİ AÇ</button>
                         </div>
                     )}
 
@@ -625,14 +627,16 @@ const MemberDashboard = () => {
                                 {vitrinPaketleri.map((pkg, idx) => (
                                     <div key={pkg.id} style={{
                                         ...styles.packageCard, 
-                                        transform: idx % 2 !== 0 ? 'translateY(30px)' : 'none' // İŞTE ZİGZAG YAPAN SİHİRLİ MERMİ!
+                                        transform: idx % 2 !== 0 ? 'translateY(30px)' : 'none'
                                     }}>
-                                        <h3 style={styles.pkgType}>{pkg.type}</h3>
-                                        <h4 style={styles.pkgDuration}>{pkg.duration}</h4>
-                                        <div style={styles.pkgPrice}>{pkg.price}</div>
+                                        <h3 style={styles.pkgType}>{pkg.name}</h3>
+                                        <h4 style={styles.pkgDuration}>{pkg.durationMonths} AY</h4>
+                                        <div style={styles.pkgPrice}>{pkg.price} ₺</div>
                                         <hr style={styles.pkgDivider}/>
                                         <ul style={styles.pkgFeatures}>
-                                            {pkg.features.map((f, i) => <li key={i}>✓ {f}</li>)}
+                                            <li>✓ Sınırsız Alet Kullanımı</li>
+                                            <li>✓ Soyunma Odası & Duş</li>
+                                            <li>✓ Profesyonel Destek</li>
                                         </ul>
                                     </div>
                                 ))}

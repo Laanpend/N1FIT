@@ -75,5 +75,14 @@ namespace Fitness.API.Controllers
 
             return Ok(new { message = "Hedef kilitlendi aslanım, namlu hazır!" });
         }
+
+        [AllowAnonymous]
+        [HttpGet("packages")]
+        public async Task<IActionResult> GetPublicPackages([FromServices] IAdminService adminService)
+        {
+            // AdminService'i araya kaynatıp paketleri SQL'den söküp alıyoruz
+            var packages = await adminService.GetAllPackagesAsync();
+            return Ok(packages);
+        }
     }
 }
