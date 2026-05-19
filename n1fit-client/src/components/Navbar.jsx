@@ -22,11 +22,11 @@ const Navbar = ({ activeTab, setActiveTab, isLoggedIn, onLogout, onOpenLogin }) 
                 <span style={{ color: '#d90429' }}>N1</span>FIT
             </div>
 
-            {isInstallable && (
+            {/* {isInstallable && (
                 <button className="pwa-btn" onClick={installPWA}>
                     <Download size={18} /> İNDİR
                 </button>
-            )}
+            )} */}
 
             <div className="nav-links">
                 {/* ================= SOL KANAT ================= */}

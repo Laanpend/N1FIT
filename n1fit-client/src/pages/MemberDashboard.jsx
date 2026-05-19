@@ -644,7 +644,7 @@ const MemberDashboard = () => {
 
                             <div style={styles.ctaContainer}>
                                 <a href="tel:5396078155" style={{ textDecoration: 'none' }}><button style={styles.ctaBtnPrimary}>Ücretsiz Tanışma Seansı Randevusu Al <ChevronRight /></button></a>
-                                <button disabled style={{ ...styles.ctaBtnSecondary, opacity: 0.4, cursor: 'not-allowed', borderColor: '#444', color: '#666' }}>Hemen Kaydol, Değişimi Başlat (Çok Yakında) <Zap /></button>
+                                {/* <button disabled style={{ ...styles.ctaBtnSecondary, opacity: 0.4, cursor: 'not-allowed', borderColor: '#444', color: '#666' }}>Hemen Kaydol, Değişimi Başlat (Çok Yakında) <Zap /></button> */}
                             </div>
 
                             <footer style={styles.footer}>
