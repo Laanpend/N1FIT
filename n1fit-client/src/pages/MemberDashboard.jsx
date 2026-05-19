@@ -622,12 +622,11 @@ const MemberDashboard = () => {
 
                             <h2 style={styles.sectionTitle} style={{marginTop: '60px', marginBottom: '20px'}}>PAKETLERİMİZ</h2>
                             
-                            {/* ZİGZAG KART YAPISI AMQ! */}
+                            {/* ZİGZAG KART YAPISI! */}
                             <div style={styles.packageGrid}>
                                 {vitrinPaketleri.map((pkg, idx) => (
                                     <div key={pkg.id} style={{
-                                        ...styles.packageCard, 
-                                        transform: idx % 2 !== 0 ? 'translateY(30px)' : 'none'
+                                        ...styles.packageCard
                                     }}>
                                         <h3 style={styles.pkgType}>{pkg.name}</h3>
                                         <h4 style={styles.pkgDuration}>{pkg.durationMonths} AY</h4>
