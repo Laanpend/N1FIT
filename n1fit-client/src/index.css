@@ -106,6 +106,7 @@ body {
     background-color: #111 !important; 
     height: 70px; /* Menünün kalınlığı */
     box-shadow: 0 -5px 20px rgba(0,0,0,0.8) !important;
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
   /* Logoyu ve indir butonunu mobilde gizle, sadece menü kalsın */

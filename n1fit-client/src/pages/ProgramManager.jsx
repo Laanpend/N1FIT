@@ -226,7 +226,7 @@ const ProgramManager = () => {
             alert("Antrenman Programı Kaydedildi!");
         } catch (err) {
             console.error("C#'TAN GELEN ASIL HATA:", err.response?.data);
-            alert("Dayı kayıt patladı! F12 Console'da 'C#'TAN GELEN ASIL HATA' kısmına bak.");
+            alert("Kayıt patladı! F12 Console'da 'C#'TAN GELEN ASIL HATA' kısmına bak.");
         }
     };
 

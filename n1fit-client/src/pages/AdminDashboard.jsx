@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api/axiosConfig';
-import { Search, Calendar, LogOut, Plus, UserPlus, Dumbbell, CreditCard, Edit, Trash2, Radius } from 'lucide-react';
+import { Search, Calendar, LogOut, Plus, UserPlus, Dumbbell, CreditCard, Edit, Trash2, Radius, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const AdminDashboard = () => {
@@ -23,7 +23,10 @@ const AdminDashboard = () => {
 
     // Modal ve Form Stateleri
     const [showModal, setShowModal] = useState(false);
-    const [editingMemberId, setEditingMemberId] = useState(null); // YENİ: Kimi düzenliyoruz amq?
+    const [editingMemberId, setEditingMemberId] = useState(null); // YENİ: Kimi düzenliyoruz?
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const recordsPerPage = 10; // Ekranda tek seferde çizilecek adam sayısı
 
     const [formData, setFormData] = useState({
         firstName: '', lastName: '', email: '', password: '',
@@ -33,6 +36,7 @@ const AdminDashboard = () => {
     });
 
     useEffect(() => {
+        setCurrentPage(1);
         const token = localStorage.getItem('n1fit_token');
         if (!token) {
             navigate('/login');
@@ -204,6 +208,13 @@ const AdminDashboard = () => {
 
     if (loading) return <div style={{ color: 'white', padding: '20px' }}>Yükleniyor...</div>;
     const selectedMember = members.find(m => m.id === editingMemberId) || {};
+    const totalPages = Math.ceil(filteredMembers.length / recordsPerPage);
+    const indexOfLastRecord = currentPage * recordsPerPage;
+    const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
+
+    // Ekranda sadece bu sayfanın adamlarını çizeceğiz!
+    const ekrandaGosterilecekAdamlar = filteredMembers.slice(indexOfFirstRecord, indexOfLastRecord);
+
     return (
         <div style={styles.container}>
             <div style={styles.main}>
@@ -247,6 +258,23 @@ const AdminDashboard = () => {
                     <button onClick={() => navigate('/admin/packages')} style={styles.libraryBtn}>
                         <CreditCard size={18} /> Üyelik Paketleri
                     </button>
+                    <div style={{
+                        marginLeft: 'auto', // Bunu çaktık ki sayacı en sağa, köşeye dayasın fiyakalı dursun
+                        backgroundColor: '#0a0a0a', // İçi zifiri siyah
+                        border: '2px solid #d90429', // Kenarlık kan kırmızı
+                        color: '#d90429', // Yazı da kan kırmızı
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontWeight: '900',
+                        fontSize: '1.1rem',
+                        boxShadow: '0 0 15px rgba(217, 4, 41, 0.2)' // Hafif neon parlama efekti
+                    }}>
+                        <Users size={20} />
+                        LİSTELENEN: {filteredMembers.length}
+                    </div>
                 </div>
                 <div style={styles.tableWrapper}>
                     <table style={styles.table}>
@@ -262,7 +290,7 @@ const AdminDashboard = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredMembers.length > 0 ? filteredMembers.map(m => {
+                            {ekrandaGosterilecekAdamlar.length > 0 ? ekrandaGosterilecekAdamlar.map(m => {
                                 // 1. Bitiş tarihi
                                 const endDate = m.subscriptionEndDate ? new Date(m.subscriptionEndDate) : null;
 
@@ -344,6 +372,28 @@ const AdminDashboard = () => {
                         </tbody>
                     </table>
                 </div>
+                {/* YENİ: İLERİ GERİ VİTESİ (SAYFALAMA BUTONLARI) */}
+                {totalPages > 1 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', marginTop: '20px', paddingBottom: '20px' }}>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                            style={{ ...styles.actionBtn, backgroundColor: currentPage === 1 ? '#333' : '#d90429', border: 'none', padding: '10px 20px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}
+                        >
+                            &laquo; Önceki
+                        </button>
+                        <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '1.1rem' }}>
+                            Sayfa {currentPage} / {totalPages}
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage === totalPages}
+                            style={{ ...styles.actionBtn, backgroundColor: currentPage === totalPages ? '#333' : '#d90429', border: 'none', padding: '10px 20px', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}
+                        >
+                            Sonraki &raquo;
+                        </button>
+                    </div>
+                )}
             </div>
             {/* YENİ ÜYE / ÜYE DÜZENLE MODALI */}
             {showModal && (

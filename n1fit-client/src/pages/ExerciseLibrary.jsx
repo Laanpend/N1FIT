@@ -220,7 +220,7 @@ const ExerciseLibrary = () => {
                             <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                                 <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '10px', backgroundColor: '#333', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>İptal</button>
                                 <button type="submit" style={{ flex: 1, padding: '10px', backgroundColor: '#d90429', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
-                                    {editingExercise ? 'Güncelle' : 'SQL\'e Zımbala'}
+                                    {editingExercise ? 'Güncelle' : 'Kaydet'}
                                 </button>
                             </div>
                         </form>

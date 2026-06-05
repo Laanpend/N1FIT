@@ -52,27 +52,33 @@ const MembershipTab = () => {
                 overflow: 'hidden' 
             }}>
                 
-                {/* SAĞ ÜSTTEKİ AKILLI ROZET */}
-                <div style={{ 
-                    position: 'absolute', 
-                    top: '20px', 
-                    right: '20px', 
-                    backgroundColor: statusColor, 
-                    color: 'white', 
-                    padding: '5px 15px', 
-                    borderRadius: '20px', 
-                    fontWeight: '900', 
-                    fontSize: '0.8rem', 
-                    textTransform: 'uppercase' 
-                }}>
-                    {statusText}
+                {/* ÜST BÖLÜM: İSİM VE ROZET YAN YANA (ÇARPIŞMAYI ÖNLEYEN SÜSPANSİYON) */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '15px', marginBottom: '10px' }}>
+                    
+                    {/* İSİM VE BAŞLIK ALANI (Kar Tanesi ve Takvim senin yazdığın gibi duruyor) */}
+                    <h3 style={{ color: 'white', margin: 0, fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {profile.isFrozen ? <Snowflake size={22} color="#3b82f6" /> : <Calendar size={22} color="#10b981" />}
+                        <span>{profile.firstName} {profile.lastName}</span>
+                    </h3>
+
+                    {/* AKILLI ROZET (Artık havada asılı değil, isme göre esneyen jilet modunda) */}
+                    <div style={{ 
+                        backgroundColor: statusColor, 
+                        color: 'white', 
+                        padding: '6px 14px', 
+                        borderRadius: '20px', 
+                        fontWeight: '900', 
+                        fontSize: '0.8rem', 
+                        textTransform: 'uppercase',
+                        whiteSpace: 'nowrap',
+                        alignSelf: 'center' /* Rozeti isimle aynı hizada tutar */
+                    }}>
+                        {statusText}
+                    </div>
+
                 </div>
 
-                {/* İSİM VE BAŞLIK ALANI */}
-                <h3 style={{ color: 'white', marginTop: 0, fontSize: '1.5rem', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {profile.isFrozen ? <Snowflake size={22} color="#3b82f6" /> : <Calendar size={22} color="#10b981" />}
-                    {profile.firstName} {profile.lastName}
-                </h3>
+                {/* EMAIL VE TELEFON (Senin orijin kodu, zerre dokunmadık) */}
                 <p style={{ color: '#aaa', margin: 0, fontSize: '0.9rem' }}>{profile.email} • {profile.phoneNumber}</p>
 
                 {/* DONDURULAN ADAMA ÖZEL UYARI BLOKU */}

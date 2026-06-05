@@ -33,7 +33,7 @@ const Home = () => {
                 </div>
             </div>
 
-            {/* ÖZELLİKLER (DÜMENDEN) */}
+            {/* ÖZELLİKLER*/}
             <div style={styles.features}>
                 <div style={styles.featureCard}>
                     <Dumbbell color="#d90429" size={40} />

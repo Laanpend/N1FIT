@@ -32,11 +32,11 @@ const Navbar = ({ activeTab, setActiveTab, isLoggedIn, onLogout, onOpenLogin }) 
                 {/* ================= SOL KANAT ================= */}
                 <button className={`nav-item ${activeTab === 'workout' ? 'active' : ''}`} onClick={() => handleTabClick('workout')}>
                     <Dumbbell size={24} />
-                    <span>İdman</span>
+                    <span>Antrenman</span>
                 </button>
                 <button className={`nav-item ${activeTab === 'diet' ? 'active' : ''}`} onClick={() => handleTabClick('diet')}>
                     <Utensils size={24} />
-                    <span>Diyet</span>
+                    <span>Beslenme</span>
                 </button>
 
                 {/* ================= KRAL BUTON (ANA SAYFA) ================= */}
@@ -49,7 +49,7 @@ const Navbar = ({ activeTab, setActiveTab, isLoggedIn, onLogout, onOpenLogin }) 
                 {/* ================= SAĞ KANAT ================= */}
                 <button className={`nav-item ${activeTab === 'measure' ? 'active' : ''}`} onClick={() => handleTabClick('measure')}>
                     <Ruler size={24} />
-                    <span>Ölçü</span>
+                    <span>Ölçülerim</span>
                 </button>
                 
                 {/* ÜYELİK BUTONU (Eksik olan mühimmatı buraya çaktık) */}
