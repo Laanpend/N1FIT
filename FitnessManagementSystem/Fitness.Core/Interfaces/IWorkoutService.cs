@@ -13,7 +13,6 @@ namespace Fitness.Core.Interfaces
 {
     public interface IWorkoutService : IService<WorkoutProgram>
     {
-        // BAK BU SİLİNMİŞTİ, GERİ GETİRDİK AMQ
         Task<WorkoutProgram> GetMemberProgramAsync(int userId);
 
         Task SaveWorkoutProgramAsync(int userId, SaveWorkoutProgramDto dto);

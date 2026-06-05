@@ -108,9 +108,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin() // Þimdilik her yere izin ver, sunucuya çýkarken kýsýtlarýz
+        policy.WithOrigins("https://n1fit.com.tr", "https://www.n1fit.com.tr")
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials();
     });
 });
 

@@ -84,9 +84,9 @@ const WorkoutTab = () => {
                                                         </div>
                                                     ) : (
                                                         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                                                            {ex.sets && <span>Set: <b style={{ color: '#4ade80' }}>{ex.sets} dk</b></span>}
+                                                            {ex.sets && <span>Set: <b style={{ color: '#4ade80' }}>{ex.sets}</b></span>}
                                                             {ex.reps && <span>Tekrar: <b style={{ color: '#4ade80' }}>{ex.reps}</b></span>}
-                                                            {ex.restTime && <span>Dinleme: <b style={{ color: '#4ade80' }}>{ex.restTime} dk</b></span>}
+                                                            {ex.restTime && <span>Dinleme: <b style={{ color: '#4ade80' }}>{ex.restTime} sn</b></span>}
                                                         </div>
                                                         // <>
                                                         //     <span>Set: <b style={{ color: '#4ade80' }}>{ex.sets}</b></span>

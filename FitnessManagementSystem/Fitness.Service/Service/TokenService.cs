@@ -37,7 +37,7 @@ public class TokenService : ITokenService
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.Now.AddDays(1), // Anahtar 1 gün boyunca geçerli
+            Expires = DateTime.Now.AddDays(365), // Anahtar 365 gün boyunca geçerli
             SigningCredentials = creds,
             Issuer = _configuration["TokenOptions:Issuer"],
             Audience = _configuration["TokenOptions:Audience"]

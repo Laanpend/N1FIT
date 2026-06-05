@@ -19,8 +19,8 @@ namespace Fitness.Service.Service
         private readonly IGenericRepository<Measurement> _measurementRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
-        private readonly IGenericRepository<DietProgram> _dietRepository; // BUNU EKLE
-        private readonly IGenericRepository<Exercise> _exerciseRepository; // BUNU EKLE
+        private readonly IGenericRepository<DietProgram> _dietRepository;
+        private readonly IGenericRepository<Exercise> _exerciseRepository;
         private readonly IGenericRepository<MembershipPackage> _packageRepository;
 
         // Constructor (Yapıcı metot) içinde bunu bağlamayı unutma:
@@ -29,16 +29,16 @@ namespace Fitness.Service.Service
         // CONSTRUCTOR'A MEASUREMENT REPOSUNU EKLEDİK
         public AdminService(
             IGenericRepository<User> userRepository,
-            IGenericRepository<DietProgram> dietRepository, // BUNU EKLE
+            IGenericRepository<DietProgram> dietRepository,
             IGenericRepository<Measurement> measurementRepository,
-            IGenericRepository<Exercise> exerciseRepository, // BUNU DA EKLE
+            IGenericRepository<Exercise> exerciseRepository,
             IGenericRepository<MembershipPackage> packageRepository,
             IUnitOfWork unitOfWork,
             IMapper mapper)
         {
             _userRepository = userRepository;
             _measurementRepository = measurementRepository;
-            _dietRepository = dietRepository; // BUNU EKLE
+            _dietRepository = dietRepository;
             _exerciseRepository = exerciseRepository;
             _packageRepository = packageRepository;
             _unitOfWork = unitOfWork;
@@ -217,7 +217,7 @@ namespace Fitness.Service.Service
 
         public async Task SaveDietProgramAsync(int userId, SaveDietProgramDto dto)
         {
-            // 1. Eski öğünleri bul ve tek tek siktir et
+            // 1. Eski öğünleri bul ve tek tek sil
             var oldMeals = await _dietRepository.Where(x => x.UserId == userId).ToListAsync();
             foreach (var meal in oldMeals)
             {
@@ -281,7 +281,6 @@ namespace Fitness.Service.Service
                 exercise.MuscleGroup = dto.MuscleGroup ?? "Göğüs";
                 exercise.Description = dto.Description ?? "";
                 exercise.VideoUrl = dto.VideoUrl ?? "";
-                // exercise.ImageUrl = ""; // Gerekirse bunu da açarsın
 
                 _exerciseRepository.Update(exercise);
                 await _unitOfWork.CommitAsync();
@@ -398,7 +397,7 @@ namespace Fitness.Service.Service
             }
             else
             {
-                // 2. ÇÖZME İŞLEMİ: İşte asıl matematik burada dönüyor amq
+                // 2. ÇÖZME İŞLEMİ: İşte asıl matematik burada dönüyor
                 user.IsFrozen = false;
 
                 if (user.FreezeDate.HasValue && user.SubscriptionEndDate.HasValue)

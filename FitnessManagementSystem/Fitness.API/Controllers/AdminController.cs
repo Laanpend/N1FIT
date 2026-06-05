@@ -36,7 +36,7 @@ namespace Fitness.API.Controllers
             // Değişken atamasını (var result =) siliyoruz çünkü metod bir şey dönmüyor
             await _adminService.AddMemberAsync(dto);
 
-            return Ok(new { message = "Canavar sisteme eklendi emmoğlu!" });
+            return Ok(new { message = "Üye sisteme eklendi!" });
         }
 
 
@@ -66,7 +66,7 @@ namespace Fitness.API.Controllers
         public async Task<IActionResult> SaveDietProgram(int id, [FromBody] SaveDietProgramDto dto)
         {
             await _adminService.SaveDietProgramAsync(id, dto);
-            return Ok(new { message = "Mutfak düzeni SQL'e zımbalandı dayıoğlu!" });
+            return Ok(new { message = "Diet düzeni eklendi!" });
         }
 
         [HttpGet("members/{id}/workout-program")]
@@ -112,7 +112,7 @@ namespace Fitness.API.Controllers
         public async Task<IActionResult> SaveWorkoutProgram(int id, [FromBody] SaveWorkoutProgramDto dto)
         {
             await _workoutService.SaveWorkoutProgramAsync(id, dto);
-            return Ok(new { message = "Antrenman programı SQL'e zımbalandı emmoğlu!" });
+            return Ok(new { message = "Antrenman programı eklendi!" });
         }
 
         [HttpGet("exercises")]
@@ -127,21 +127,21 @@ namespace Fitness.API.Controllers
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
             await _adminService.AddExerciseAsync(dto);
-            return Ok(new { message = "Hareket kütüphaneye zımbalandı!" });
+            return Ok(new { message = "Hareket kütüphaneye eklendi!" });
         }
 
         [HttpPut("exercises/{id}")]
         public async Task<IActionResult> UpdateExercise(int id, [FromBody] ExerciseDto dto)
         {
             await _adminService.UpdateExerciseAsync(id, dto);
-            return Ok(new { message = "Hareket güncellendi dayı!" });
+            return Ok(new { message = "Hareket güncellendi!" });
         }
 
         [HttpDelete("exercises/{id}")]
         public async Task<IActionResult> DeleteExercise(int id)
         {
             await _adminService.DeleteExerciseAsync(id);
-            return Ok(new { message = "Hareket siktir edildi!" });
+            return Ok(new { message = "Hareket silindi!" });
         }
 
         [HttpGet("packages")]
@@ -172,21 +172,21 @@ namespace Fitness.API.Controllers
         public async Task<IActionResult> DeletePackage(int id)
         {
             await _adminService.DeletePackageAsync(id);
-            return Ok(new { message = "Paket siktir edildi!" });
+            return Ok(new { message = "Paket silindi!" });
         }
 
         [HttpPut("update-member/{id}")]
         public async Task<IActionResult> UpdateMember(int id, [FromBody] UpdateMemberDto dto)
         {
             await _adminService.UpdateMemberAsync(id, dto);
-            return Ok(new { message = "Canavarın ayarlarıyla oynandı!" });
+            return Ok(new { message = "Üyenin bilgileri güncellendi!" });
         }
 
         [HttpDelete("delete-member/{id}")]
         public async Task<IActionResult> DeleteMember(int id)
         {
             await _adminService.DeleteMemberAsync(id);
-            return Ok(new { message = "Adam dükkandan şutlandı!" });
+            return Ok(new { message = "Üye silindi!" });
         }
 
         // AdminController.cs içine zımbala
@@ -194,7 +194,7 @@ namespace Fitness.API.Controllers
         public async Task<IActionResult> ToggleFreeze(int id)
         {
             await _adminService.ToggleFreezeAsync(id);
-            return Ok(new { message = "Canavarın durumu değişti!" });
+            return Ok(new { message = "Üyenin durumu değişti!" });
         }
 
         // 1. ADAMI ÇAĞIRMA KAPISI
@@ -202,7 +202,7 @@ namespace Fitness.API.Controllers
         public async Task<IActionResult> GetMemberById(int id)
         {
             var member = await _adminService.GetMemberByIdAsync(id);
-            if (member == null) return NotFound("Böyle bir canavar dükkanda yok amq!");
+            if (member == null) return NotFound("Böyle bir üye yok!");
             return Ok(member);
         }
 
@@ -211,7 +211,7 @@ namespace Fitness.API.Controllers
         public async Task<IActionResult> AddMeasurement(int id, [FromBody] MeasurementDto dto)
         {
             await _adminService.AddMeasurementAsync(id, dto);
-            return Ok(new { message = "Ölçü SQL'e kazındı!" });
+            return Ok(new { message = "Ölçü eklendi!" });
         }
 
         [HttpGet("member/{id}/measurements")]
@@ -240,7 +240,7 @@ namespace Fitness.API.Controllers
         public async Task<IActionResult> GetMemberDetail(int id)
         {
             var profile = await _adminService.GetMemberByIdAsync(id);
-            if (profile == null) return NotFound("Adam firar etmiş amq!");
+            if (profile == null) return NotFound("Üye bulunamadı!");
             return Ok(profile);
         }
 
@@ -252,16 +252,16 @@ namespace Fitness.API.Controllers
             var success = await _adminService.DeleteMeasurementAsync(id);
 
             if (!success)
-                return NotFound("Ölçü bulunamadı dayıoğlu!");
+                return NotFound("Ölçü bulunamadı!");
 
-            return Ok(new { message = "Ölçü tarihe gömüldü." });
+            return Ok(new { message = "Ölçü silindi!" });
         }
 
         [HttpPut("measurements/{id}")]
         public async Task<IActionResult> UpdateMeasurement(int id, [FromBody] MeasurementDto dto)
         {
             await _adminService.UpdateMeasurementAsync(id, dto);
-            return Ok(new { message = "Ölçü aslanlar gibi güncellendi!" });
+            return Ok(new { message = "Ölçü gibi güncellendi!" });
         }
 
         [HttpPost("members/{id}/renew")]
@@ -269,9 +269,9 @@ namespace Fitness.API.Controllers
         {
             var success = await _adminService.RenewMembershipAsync(id, dto.PackageId, dto.PaidAmount);
 
-            if (!success) return NotFound("Böyle bir üye yok amq!");
+            if (!success) return NotFound("Böyle bir üye yok!");
 
-            return Ok(new { message = "Adamın süresi aslanlar gibi uzatıldı!" });
+            return Ok(new { message = "Üyenin süresi uzatıldı!" });
         }
         [HttpPost("members/{id}/pay-debt")]
         public async Task<IActionResult> PayDebt(int id, [FromBody] PayDebtDto dto)

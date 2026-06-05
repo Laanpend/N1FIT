@@ -25,7 +25,6 @@ namespace Fitness.Service.Service
             _configuration = configuration;
         }
 
-        // Üyeliği bitenleri kontrol et ve (şimdilik) log at
         public async Task CheckExpiringSubscriptions()
         {
             var targetDate = DateTime.Now.AddDays(5).Date;
@@ -59,7 +58,6 @@ namespace Fitness.Service.Service
             }
         }
 
-        // 3 ay boyunca pasif olan üyeleri sil
         public async Task ClearInactiveMembers()
         {
             var threeMonthsAgo = DateTime.Now.AddMonths(-3);

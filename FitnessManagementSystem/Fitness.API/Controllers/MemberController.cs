@@ -26,7 +26,7 @@ namespace Fitness.API.Controllers
             var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (string.IsNullOrEmpty(userIdString))
-                return Unauthorized(new { message = "Token patlak dayı, yeniden giriş yap!" });
+                return Unauthorized(new { message = "Token hatalı, yeniden giriş yap!" });
 
             int userId = int.Parse(userIdString);
             var profile = await _memberService.GetMyProfileAsync(userId);
@@ -37,7 +37,7 @@ namespace Fitness.API.Controllers
         public async Task<IActionResult> GetMyWorkout()
         {
             var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdString)) return Unauthorized(new { message = "Token patlak dayı!" });
+            if (string.IsNullOrEmpty(userIdString)) return Unauthorized(new { message = "Token hatalı!" });
 
             var workout = await _memberService.GetMyWorkoutAsync(int.Parse(userIdString));
             return Ok(workout);
@@ -47,7 +47,7 @@ namespace Fitness.API.Controllers
         public async Task<IActionResult> GetMyDiet()
         {
             var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdString)) return Unauthorized(new { message = "Token patlak dayı!" });
+            if (string.IsNullOrEmpty(userIdString)) return Unauthorized(new { message = "Token hatalı" });
 
             var diet = await _memberService.GetMyDietAsync(int.Parse(userIdString));
             return Ok(diet);
@@ -57,7 +57,7 @@ namespace Fitness.API.Controllers
         public async Task<IActionResult> GetMyMeasurements()
         {
             var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdString)) return Unauthorized(new { message = "Token patlak dayı!" });
+            if (string.IsNullOrEmpty(userIdString)) return Unauthorized(new { message = "Token hatalı!" });
 
             var measurements = await _memberService.GetMyMeasurementsAsync(int.Parse(userIdString));
             return Ok(measurements);
@@ -73,7 +73,7 @@ namespace Fitness.API.Controllers
             // Tertemiz, _context falan yok! Direkt senin service'i kullanıyoruz.
             await _memberService.SavePushSubscriptionAsync(userId, dto.Endpoint, dto.P256dh, dto.Auth);
 
-            return Ok(new { message = "Hedef kilitlendi aslanım, namlu hazır!" });
+            return Ok(new { message = "Hedef kilitlendi, namlu hazır!" });
         }
 
         [AllowAnonymous]

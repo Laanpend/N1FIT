@@ -85,7 +85,7 @@ namespace Fitness.Service.Service
                 .ToListAsync();
 
             // İŞTE ZURNANIN ZIRT DEDİĞİ YER: ANTRENMANLARI SQL'DEN ÇEKİYORUZ!
-            // Select kullandığımız için Include yazmamıza gerek yok, EF Core kendisi lüpletiyor amq.
+            // Select kullandığımız için Include yazmamıza gerek yok, EF Core kendisi lüpletiyor.
             var workouts = await _workoutDayExerciseRepository
     // SADECE AKTİF OLAN PROGRAMLARI ÇEKİYORUZ! Pasifler SQL'de kalır, ekrana çıkamaz.
             .Where(x => x.WorkoutDay.WorkoutProgram.UserId == userId
@@ -138,7 +138,7 @@ namespace Fitness.Service.Service
         // --- ANTRENMAN MOTORU ---
         public async Task<object> GetMyWorkoutAsync(int userId)
         {
-            // Veriyi çekerken hareketin adını ve videosunu da paketliyoruz (JOIN amq)!
+            // Veriyi çekerken hareketin adını ve videosunu da paketliyoruz (JOIN)!
             var exercises = await _workoutDayExerciseRepository
                 .Where(x => x.WorkoutDay.WorkoutProgram.UserId == userId && x.WorkoutDay.WorkoutProgram.IsActive == true)
                 .OrderBy(x => x.Id)
@@ -198,7 +198,7 @@ namespace Fitness.Service.Service
             {
                 mealName = d.MealName,
                 time = d.Time,
-                content = d.Content // Senin veritabanında liste değil, dümdüz yazı var amq!
+                content = d.Content // Senin veritabanında liste değil, dümdüz yazı var!
             }).ToList();
 
             return new { meals = meals };

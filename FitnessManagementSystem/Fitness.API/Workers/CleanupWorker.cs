@@ -16,7 +16,7 @@ namespace Fitness.API.Workers
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            // Makine durdurulmadığı sürece bu döngü dönecek amq
+            // Makine durdurulmadığı sürece bu döngü dönecek
             while (!stoppingToken.IsCancellationRequested)
             {
                 using (var scope = _serviceProvider.CreateScope())
@@ -28,7 +28,7 @@ namespace Fitness.API.Workers
                     {
                         // 3 ay muhabbetini temizleyen o metodu ateşle!
                         await jobService.ClearInactiveMembers();
-                        Console.WriteLine("GECE OPERASYONU: 3 aylık pasif godoşlar SQL'den kazındı!");
+                        Console.WriteLine("3 aydır pasif olan üyeler silindi!");
                     }
                     catch (Exception ex)
                     {

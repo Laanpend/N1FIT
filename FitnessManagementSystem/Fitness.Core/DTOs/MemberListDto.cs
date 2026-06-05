@@ -15,7 +15,6 @@ namespace Fitness.Core.DTOs
         public bool IsActive { get; set; }
         public DateTime? SubscriptionEndDate { get; set; }
 
-        // Bu DTO'nun içine şunları kesin ekle:
         public DateTime? MembershipStartDate { get; set; }
         public decimal TotalDebt { get; set; }
         public decimal PaidAmount { get; set; }

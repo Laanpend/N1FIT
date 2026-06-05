@@ -220,7 +220,7 @@ const MemberDashboard = () => {
                             </div>
 
                             <div style={styles.ctaContainer}>
-                                <a href="tel:5396078155" style={{ textDecoration: 'none' }}><button style={styles.ctaBtnPrimary}>Ücretsiz Tanışma Seansı Randevusu Al <ChevronRight /></button></a>
+                                <a href="tel:5396078154" style={{ textDecoration: 'none' }}><button style={styles.ctaBtnPrimary}>Ücretsiz Tanışma Seansı Randevusu Al <ChevronRight /></button></a>
                                 {/* <button disabled style={{ ...styles.ctaBtnSecondary, opacity: 0.4, cursor: 'not-allowed', borderColor: '#444', color: '#666' }}>Hemen Kaydol, Değişimi Başlat (Çok Yakında) <Zap /></button> */}
                             </div>
 
@@ -245,7 +245,7 @@ const MemberDashboard = () => {
                                         <a href="https://www.youtube.com/@N1F%C4%B0TSPORMERKEZ%C4%B0" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
                                             <div style={{...styles.contactItem, cursor: 'pointer', transition: '0.3s', border: '1px solid #d90429'}}>
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d90429" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33 2.78 2.78 0 0 0 1.94 2c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.33 29 29 0 0 0-.46-5.33z"></path><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon></svg>
-                                                <span style={{ color: '#fff', fontWeight: 'bold', letterSpacing: '1px' }}>YouTube Kanalımız</span>
+                                                <span style={{ color: '#fff', fontWeight: 'bold', letterSpacing: '1px' }}>@N1FİTSPORMERKEZİ</span>
                                             </div>
                                         </a>
                                     </div>
