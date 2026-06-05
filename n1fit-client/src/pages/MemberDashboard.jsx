@@ -127,7 +127,16 @@ const MemberDashboard = () => {
             setMeasurements(res.data.measurements || []);
             setLoading(false);
         } catch (error) {
+            console.error("Profil çekilirken motor yandı:", error);
             if (error.response?.status === 401) navigate('/login');
+            else {
+                // DİĞER BÜTÜN HATALARDA (PWA ağ hatası vs.) ADAMI İÇERİ ANA SAYFAYA AT Kİ EKRAN DONMASIN
+                setIsLoggedIn(false); 
+                localStorage.removeItem('n1fit_token'); // Bozuk tokenı sil
+            }
+        } finally {
+            //ÇALIŞACAK BLOK! Hata olsa da olmasa da o loading ekranı kapanacak!
+            setLoading(false);
         }
     };
 
