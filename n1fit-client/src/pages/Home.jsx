@@ -313,7 +313,8 @@ const getSiteStyles = (themeConfig = {}) => {
             border: '5px solid #23272f',
             padding: '12px',
             boxShadow: `0 25px 60px ${themeGlow}`,
-            position: 'relative'
+            position: 'relative',
+            boxSizing: 'border-box'
         },
         phoneSpeaker: {
             width: '60px',
@@ -1417,21 +1418,21 @@ const Home = () => {
     const renderAppBody = (c) => (
         <section key={c.id} id="app-section" style={{ ...styles.appSection, backgroundColor: c.backgroundColor || 'transparent' }} className="section-responsive">
             <div style={styles.appContainer} className="app-container-responsive">
-                <div style={styles.appLeft}>
-                    <div style={styles.appBadge}>{c.badgeText || "N1FIT DİJİTAL SPORCU ASİSTANI"}</div>
-                    <h2 style={styles.appTitle} className="section-title-responsive">
+                <div style={styles.appLeft} className="app-left-responsive">
+                    <div style={styles.appBadge} className="app-badge-responsive">{c.badgeText || "N1FIT DİJİTAL SPORCU ASİSTANI"}</div>
+                    <h2 style={styles.appTitle} className="section-title-responsive app-title-responsive">
                         {c.title ? (
                             c.title.includes('\n') ? c.title.split('\n').map((l, i) => <React.Fragment key={i}>{l}<br/></React.Fragment>) : c.title
                         ) : (
                             <>Web Sitemiz Bilgi Verir, <br /><span style={{ color: themeAccent }}>Antrenmanı Cebin Yönetir!</span></>
                         )}
                     </h2>
-                    <p style={styles.appParagraph}>
+                    <p style={styles.appParagraph} className="app-paragraph-responsive">
                         {c.subtitle || "Web sitemiz salonumuzun kurumsal vitrinidir. Günlük antrenman programınız, setleriniz, beslenme listeniz ve gelişim ölçümleriniz ise resmi N1FIT Mobil Uygulamamızla daima cebinizde."}
                     </p>
 
                     <div style={styles.appFeatureGrid} className="app-feature-grid-responsive">
-                        <div style={styles.appFeatureItem}>
+                        <div style={styles.appFeatureItem} className="app-feature-item-responsive">
                             <div style={styles.appFeatureIcon}><Dumbbell size={22} color={themeAccent} /></div>
                             <div>
                                 <h4 style={styles.appFeatureTitle}>Antrenman & Set Takibi</h4>
@@ -1439,7 +1440,7 @@ const Home = () => {
                             </div>
                         </div>
 
-                        <div style={styles.appFeatureItem}>
+                        <div style={styles.appFeatureItem} className="app-feature-item-responsive">
                             <div style={styles.appFeatureIcon}><Activity size={22} color={themeAccent} /></div>
                             <div>
                                 <h4 style={styles.appFeatureTitle}>Kişiye Özel Beslenme & Kalori</h4>
@@ -1447,7 +1448,7 @@ const Home = () => {
                             </div>
                         </div>
 
-                        <div style={styles.appFeatureItem}>
+                        <div style={styles.appFeatureItem} className="app-feature-item-responsive">
                             <div style={styles.appFeatureIcon}><Target size={22} color={themeAccent} /></div>
                             <div>
                                 <h4 style={styles.appFeatureTitle}>Gelişim & Vücut Ölçüleri</h4>
@@ -1455,7 +1456,7 @@ const Home = () => {
                             </div>
                         </div>
 
-                        <div style={styles.appFeatureItem}>
+                        <div style={styles.appFeatureItem} className="app-feature-item-responsive">
                             <div style={styles.appFeatureIcon}><Clock size={22} color={themeAccent} /></div>
                             <div>
                                 <h4 style={styles.appFeatureTitle}>Kalan Üyelik Süresi Kontrolü</h4>
@@ -1464,7 +1465,7 @@ const Home = () => {
                         </div>
                     </div>
 
-                    <div style={styles.appDownloadRow}>
+                    <div style={styles.appDownloadRow} className="app-download-row-responsive">
                         <InstallAppBanner
                             customButtonOnly={true}
                             buttonText="📲 Mobil Uygulamamızı İndirin (Android & iPhone)"
@@ -1473,8 +1474,8 @@ const Home = () => {
                     </div>
                 </div>
 
-                <div style={styles.appRight}>
-                    <div style={styles.phoneMockup}>
+                <div style={styles.appRight} className="app-right-responsive">
+                    <div style={styles.phoneMockup} className="phone-mockup-responsive">
                         <div style={styles.phoneSpeaker}></div>
                         <div style={styles.phoneScreen}>
                             <div style={styles.phoneHeader}>
@@ -1877,7 +1878,8 @@ const Home = () => {
                             gap: '28px',
                             maxWidth: '1100px',
                             margin: '0 auto',
-                            alignItems: 'stretch'
+                            alignItems: 'stretch',
+                            boxSizing: 'border-box'
                         }} className="package-grid-responsive">
                             {packages.map((pkg, idx) => {
                                 const isFeatured = idx === 1 || pkg.name?.toLowerCase().includes('kadın') || pkg.name?.toLowerCase().includes('yıllık') || pkg.name?.toLowerCase().includes('3 ay');
@@ -1896,7 +1898,8 @@ const Home = () => {
                                             flexDirection: 'column',
                                             justifyContent: 'space-between',
                                             transform: isFeatured ? 'translateY(-6px)' : 'none',
-                                            transition: 'transform 0.3s ease, box-shadow 0.3s ease'
+                                            transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                                            boxSizing: 'border-box'
                                         }}
                                         className="package-card-responsive"
                                     >
@@ -2265,14 +2268,15 @@ const Home = () => {
                     borderRadius: cardRadius,
                     padding: '32px 28px',
                     marginBottom: '32px',
-                    boxShadow: `0 20px 50px rgba(0,0,0,0.75), 0 0 28px ${themeGlow}`
-                }}>
+                    boxShadow: `0 20px 50px rgba(0,0,0,0.75), 0 0 28px ${themeGlow}`,
+                    boxSizing: 'border-box'
+                }} className="lead-card-responsive">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '22px' }}>
                         <div>
                             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: 'rgba(74, 222, 128, 0.14)', border: '1px solid rgba(74, 222, 128, 0.4)', color: '#4ade80', padding: '4px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '900', marginBottom: '8px' }}>
                                 🎁 ÜCRETSİZ TANIŞMA & VÜCUT ANALİZİ RANDEVUSU
                             </div>
-                            <h3 style={{ fontSize: '1.5rem', fontWeight: '900', color: '#fff', margin: 0 }}>
+                            <h3 style={{ fontSize: '1.5rem', fontWeight: '900', color: '#fff', margin: 0 }} className="lead-title-responsive">
                                 Ön Kayıt & Bilgi Formu Bırakın, Sizi Arayalım!
                             </h3>
                             <p style={{ color: '#9ca3af', fontSize: '0.9rem', margin: '6px 0 0 0' }}>
@@ -2292,7 +2296,7 @@ const Home = () => {
                         </div>
                     )}
 
-                    <form onSubmit={handleLeadSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+                    <form onSubmit={handleLeadSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', boxSizing: 'border-box' }} className="lead-form-grid-responsive">
                         <div>
                             <label style={{ display: 'block', fontSize: '0.76rem', color: '#9ca3af', fontWeight: '800', marginBottom: '6px', textTransform: 'uppercase' }}>Adınız Soyadınız *</label>
                             <input
@@ -2342,13 +2346,14 @@ const Home = () => {
                                 <option value="Kadınlara Özel Seans Saatleri">🌸 Kadınlara Özel Seans Saatleri</option>
                             </select>
                         </div>
-                        <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }} className="lead-submit-row-responsive">
                             <input
                                 type="text"
                                 placeholder="Eklemek istediğiniz not veya soru (İsteğe bağlı)..."
                                 value={leadForm.note}
                                 onChange={(e) => setLeadForm({ ...leadForm, note: e.target.value })}
                                 style={{ flex: '1 1 280px', padding: '12px 14px', backgroundColor: '#151924', border: '1px solid #282f42', borderRadius: '10px', color: '#fff', fontSize: '0.92rem', boxSizing: 'border-box' }}
+                                className="lead-note-input-responsive"
                             />
                             <button
                                 type="submit"
@@ -2363,8 +2368,9 @@ const Home = () => {
                                     fontSize: '0.95rem',
                                     cursor: leadSubmitting ? 'wait' : 'pointer',
                                     boxShadow: `0 8px 25px ${themeGlow}`,
-                                    whiteSpace: 'nowrap'
+                                    boxSizing: 'border-box'
                                 }}
+                                className="lead-submit-btn-responsive"
                             >
                                 {leadSubmitting ? 'Gönderiliyor...' : '🎁 Ücretsiz Tanışma Randevusu Oluştur →'}
                             </button>
@@ -3227,13 +3233,70 @@ const Home = () => {
                         margin-top: 36px !important;
                     }
                     .app-container-responsive {
-                        grid-template-columns: 1fr !important;
+                        display: flex !important;
+                        flex-direction: column !important;
                         gap: 36px !important;
-                        text-align: center;
+                        text-align: center !important;
+                        align-items: center !important;
+                        width: 100% !important;
+                        box-sizing: border-box !important;
+                    }
+                    .app-left-responsive {
+                        width: 100% !important;
+                        max-width: 680px !important;
+                        box-sizing: border-box !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                        align-items: center !important;
+                        text-align: center !important;
+                    }
+                    .app-title-responsive {
+                        font-size: clamp(1.75rem, 5.5vw, 2.4rem) !important;
+                        line-height: 1.25 !important;
+                        margin-bottom: 14px !important;
+                    }
+                    .app-paragraph-responsive {
+                        font-size: 0.98rem !important;
+                        line-height: 1.65 !important;
+                        max-width: 560px !important;
+                        margin: 0 auto !important;
                     }
                     .app-feature-grid-responsive {
                         grid-template-columns: 1fr !important;
-                        text-align: left;
+                        gap: 14px !important;
+                        width: 100% !important;
+                        max-width: 520px !important;
+                        margin: 24px auto !important;
+                        text-align: left !important;
+                    }
+                    .app-download-row-responsive {
+                        width: 100% !important;
+                        display: flex !important;
+                        justify-content: center !important;
+                    }
+                    .app-download-row-responsive button {
+                        width: 100% !important;
+                        max-width: 420px !important;
+                        justify-content: center !important;
+                        box-sizing: border-box !important;
+                    }
+                    .app-right-responsive {
+                        width: 100% !important;
+                        display: flex !important;
+                        justify-content: center !important;
+                        align-items: center !important;
+                    }
+                    .phone-mockup-responsive {
+                        width: 280px !important;
+                        max-width: 88vw !important;
+                        margin: 0 auto !important;
+                        box-sizing: border-box !important;
+                    }
+                    .package-grid-responsive {
+                        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
+                        gap: 20px !important;
+                        width: 100% !important;
+                        box-sizing: border-box !important;
                     }
                     .hours-grid-responsive {
                         grid-template-columns: 1fr !important;
@@ -3295,7 +3358,8 @@ const Home = () => {
                         font-size: 0.72rem !important;
                     }
                     .section-responsive {
-                        padding: 48px 14px !important;
+                        padding: 44px 12px !important;
+                        overflow-x: hidden !important;
                     }
                     .section-title-responsive {
                         font-size: 1.85rem !important;
@@ -3311,10 +3375,103 @@ const Home = () => {
                         grid-template-columns: 1fr !important;
                         gap: 18px !important;
                     }
+                    .app-container-responsive {
+                        display: flex !important;
+                        flex-direction: column !important;
+                        gap: 28px !important;
+                        padding: 0 !important;
+                        width: 100% !important;
+                        box-sizing: border-box !important;
+                    }
+                    .app-left-responsive {
+                        width: 100% !important;
+                        padding: 0 !important;
+                        box-sizing: border-box !important;
+                    }
+                    .app-title-responsive {
+                        font-size: 1.6rem !important;
+                        line-height: 1.25 !important;
+                    }
+                    .app-feature-grid-responsive {
+                        grid-template-columns: 1fr !important;
+                        gap: 12px !important;
+                        width: 100% !important;
+                        margin: 20px 0 !important;
+                    }
+                    .app-feature-item-responsive {
+                        padding: 12px 14px !important;
+                        background: #11141c !important;
+                        border: 1px solid #1f2533 !important;
+                        border-radius: 12px !important;
+                        box-sizing: border-box !important;
+                        width: 100% !important;
+                    }
+                    .app-download-row-responsive button {
+                        font-size: 0.86rem !important;
+                        padding: 13px 14px !important;
+                        white-space: normal !important;
+                        line-height: 1.35 !important;
+                        width: 100% !important;
+                    }
+                    .phone-mockup-responsive {
+                        width: 270px !important;
+                        max-width: 86vw !important;
+                        margin: 0 auto !important;
+                        box-sizing: border-box !important;
+                    }
+                    .package-grid-responsive {
+                        grid-template-columns: 1fr !important;
+                        gap: 22px !important;
+                        width: 100% !important;
+                        max-width: 100% !important;
+                        box-sizing: border-box !important;
+                        padding: 0 !important;
+                    }
                     .package-card-responsive {
                         width: 100% !important;
-                        max-width: 320px !important;
-                        padding: 24px 16px !important;
+                        max-width: 100% !important;
+                        box-sizing: border-box !important;
+                        padding: 34px 18px 24px 18px !important;
+                        margin: 0 auto !important;
+                        transform: none !important;
+                    }
+                    .lead-card-responsive {
+                        padding: 22px 14px !important;
+                        box-sizing: border-box !important;
+                        width: 100% !important;
+                        border-radius: 14px !important;
+                    }
+                    .lead-title-responsive {
+                        font-size: 1.25rem !important;
+                        line-height: 1.35 !important;
+                    }
+                    .lead-form-grid-responsive {
+                        grid-template-columns: 1fr !important;
+                        gap: 12px !important;
+                        width: 100% !important;
+                    }
+                    .lead-submit-row-responsive {
+                        display: flex !important;
+                        flex-direction: column !important;
+                        width: 100% !important;
+                        gap: 12px !important;
+                    }
+                    .lead-note-input-responsive {
+                        width: 100% !important;
+                        flex: 1 1 auto !important;
+                        box-sizing: border-box !important;
+                    }
+                    .lead-submit-btn-responsive {
+                        width: 100% !important;
+                        white-space: normal !important;
+                        text-align: center !important;
+                        padding: 14px 16px !important;
+                        font-size: 0.9rem !important;
+                        line-height: 1.35 !important;
+                        box-sizing: border-box !important;
+                        display: flex !important;
+                        justify-content: center !important;
+                        align-items: center !important;
                     }
                     .hours-card-responsive {
                         padding: 22px 16px !important;
