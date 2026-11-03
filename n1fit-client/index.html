@@ -1,14 +1,161 @@
 <!doctype html>
 <html lang="tr">
   <head>
-    <meta name="google" content="notranslate" />
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>n1fit-client</title>
+    <meta name="google" content="notranslate" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/pwa-192x192.png" />
+    <link rel="canonical" href="https://n1fit.com.tr/" />
+
+    <script>
+      // N1FIT Otomatik Sürüm ve Eski Önbellek Temizleyicisi
+      (function() {
+        try {
+          var CURRENT_VER = '2026-11-01-v3';
+          if (localStorage.getItem('n1fit_build_ver') !== CURRENT_VER) {
+            localStorage.setItem('n1fit_build_ver', CURRENT_VER);
+            if ('caches' in window) {
+              caches.keys().then(function(names) {
+                for (var i = 0; i < names.length; i++) {
+                  caches.delete(names[i]);
+                }
+              });
+            }
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function(regs) {
+                for (var j = 0; j < regs.length; j++) {
+                  regs[j].update();
+                }
+              });
+            }
+          }
+        } catch (e) {}
+      })();
+    </script>
+
+    <!-- BİRİNCİL BAŞLIK VE META ETİKETLERİ (HER TÜRLÜ N1FIT ARAMASI İÇİN) -->
+    <title>N1FIT | Fitness, Vücut Geliştirme & Spor Merkezi</title>
+    <meta name="title" content="N1FIT | Fitness, Vücut Geliştirme & Spor Merkezi" />
+    <meta name="description" content="N1FIT resmi web sitesi. N1FIT (N1 Fit) ile kişiselleştirilmiş antrenman programları, bilimsel diyet ve kalori takibi. Sınırları zorla, hedefine ulaş!" />
+    <meta name="keywords" content="N1FIT, n1fit, N1 Fit, n1 fit, n1fit spor, n1fit spor salonu, n1fit fitness, n1fit spor merkezi, n1fit gym, n1 fit spor salonu, n1fit antrenman, n1fit diyet, n1fit üye girişi, n1fit com tr" />
+    <meta name="author" content="N1FIT" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+
+    <!-- GOOGLE SEARCH CONSOLE DOĞRULAMA -->
+    <meta name="google-site-verification" content="googlef00f0c01206672fb" />
+
+    <!-- OPEN GRAPH / FACEBOOK / WHATSAPP / TELEGRAM SOSYAL PAYLAŞIM -->
+    <meta property="og:locale" content="tr_TR" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://n1fit.com.tr/" />
+    <meta property="og:site_name" content="N1FIT" />
+    <meta property="og:title" content="N1FIT | Fitness, Vücut Geliştirme & Spor Merkezi" />
+    <meta property="og:description" content="N1FIT resmi web sitesi. N1FIT (N1 Fit) ile kişiselleştirilmiş antrenman programları, bilimsel diyet ve kalori takibi ile hedeflerine ulaş!" />
+    <meta property="og:image" content="https://n1fit.com.tr/favicon.png" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:image:alt" content="N1FIT Spor Merkezi Logo" />
+
+    <!-- TWITTER CARD -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="N1FIT | Fitness, Vücut Geliştirme & Spor Merkezi" />
+    <meta name="twitter:description" content="N1FIT resmi web sitesi. N1FIT (N1 Fit) ile antrenman ve beslenme takibi." />
+    <meta name="twitter:image" content="https://n1fit.com.tr/favicon.png" />
+
+    <!-- GOOGLE SCHEMA.ORG JSON-LD YAPILANDIRILMIŞ VERİ (MARKA VE KURUM DOĞRULAMA) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://n1fit.com.tr/#website",
+          "url": "https://n1fit.com.tr/",
+          "name": "N1FIT",
+          "alternateName": [
+            "n1fit",
+            "N1FIT",
+            "N1 Fit",
+            "n1 fit",
+            "N1FIT Spor",
+            "N1FIT Spor Merkezi",
+            "N1FIT Spor Salonu",
+            "N1FIT Fitness",
+            "N1FIT Gym"
+          ],
+          "description": "N1FIT resmi web sitesi ve dijital spor merkezi platformu.",
+          "inLanguage": "tr-TR",
+          "publisher": {
+            "@id": "https://n1fit.com.tr/#organization"
+          }
+        },
+        {
+          "@type": ["SportsActivityLocation", "HealthClub", "ExerciseGym", "Organization"],
+          "@id": "https://n1fit.com.tr/#organization",
+          "name": "N1FIT",
+          "alternateName": [
+            "n1fit",
+            "N1 Fit",
+            "n1 fit",
+            "N1FIT Spor",
+            "N1FIT Spor Merkezi",
+            "N1FIT Spor Salonu",
+            "N1FIT Fitness",
+            "N1FIT Gym"
+          ],
+          "url": "https://n1fit.com.tr/",
+          "logo": "https://n1fit.com.tr/favicon.png",
+          "image": [
+            "https://n1fit.com.tr/SalonunFotolari/Salon1.jpeg",
+            "https://n1fit.com.tr/favicon.png"
+          ],
+          "description": "N1FIT (N1 Fit), en modern fitness ekipmanları, kişiye özel antrenman programları, bilimsel beslenme ve kalori takip sistemi sağlayan yeni nesil spor merkezidir.",
+          "priceRange": "₺₺",
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "Kültür, Yavuz Selim Sk. No:8",
+            "addressLocality": "Gölyaka",
+            "addressRegion": "Düzce",
+            "postalCode": "81100",
+            "addressCountry": "TR"
+          }
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- SPA İLK YÜKLENME ARAMA MOTORU STATİK İÇERİĞİ (REACT YÜKLENMEDEN ÖNCE GOOGLE'IN İNDEKSLEMESİ İÇİN) -->
+    <div id="root">
+      <main style="background-color: #0a0a0a; color: #ffffff; min-height: 100vh; padding: 40px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <header style="max-width: 900px; margin: 0 auto; text-align: center;">
+          <h1 style="font-size: 2.8rem; margin-bottom: 12px; color: #ffffff; font-weight: 800;">
+            N1<span style="color: #d90429;">FIT</span> SPOR & FITNESS MERKEZİ
+          </h1>
+          <p style="font-size: 1.15rem; color: #cccccc; line-height: 1.6; max-width: 700px; margin: 0 auto;">
+            <strong>N1FIT</strong> (N1 Fit), modern fitness ve vücut geliştirme salonu. Kişiye özel antrenman programları, bilimsel diyet ve kalori takibi ile hedeflerine hemen ulaş.
+          </p>
+        </header>
+        <section style="max-width: 900px; margin: 50px auto 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;">
+          <article style="background: #111111; padding: 24px; border-radius: 10px; border: 1px solid #222222;">
+            <h2 style="color: #d90429; font-size: 1.25rem; margin-top: 0;">Kişiye Özel Antrenman</h2>
+            <p style="color: #aaaaaa; font-size: 0.95rem;">N1FIT antrenörleri tarafından vücut yapına ve hedeflerine göre hazırlanan set, tekrar ve videolu antrenmanlar.</p>
+          </article>
+          <article style="background: #111111; padding: 24px; border-radius: 10px; border: 1px solid #222222;">
+            <h2 style="color: #d90429; font-size: 1.25rem; margin-top: 0;">Beslenme & Kalori Takibi</h2>
+            <p style="color: #aaaaaa; font-size: 0.95rem;">Mifflin-St Jeor bilimsel formülü, akıllı besin kütüphanesi ve porsiyon takip sistemiyle kalori kontrolü.</p>
+          </article>
+          <article style="background: #111111; padding: 24px; border-radius: 10px; border: 1px solid #222222;">
+            <h2 style="color: #d90429; font-size: 1.25rem; margin-top: 0;">N1FIT Üye Paneli</h2>
+            <p style="color: #aaaaaa; font-size: 0.95rem;">Öğünlerini işaretle, günlük su tüketimini takip et ve antrenmanlarını cebinden yönet.</p>
+          </article>
+        </section>
+      </main>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

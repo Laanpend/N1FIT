@@ -9,16 +9,38 @@ createRoot(document.getElementById('root')).render(
   </StrictMode>,
 )
 
-if ('serviceWorker' in navigator) {
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    // Vercel'e atarken PWA bazen sw.js'in adını değiştirip çalıştırır, 
-    // ama biz manuel injectManifest kullandığımız için genelde /sw.js olarak çıkar.
-    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    // updateViaCache: 'none' -> Tarayıcının sw.js dosyasını önbelleğe almasını engeller, her zaman sunucudan taze kontrol eder!
+    navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
       .then((registration) => {
-        console.log('SW Amelesi şantiyeye başarıyla girdi! Scope:', registration.scope);
+        console.log('Service Worker başarıyla kaydedildi. Scope:', registration.scope);
+
+        // Sayfa açıldığında ve sekme görünür olduğunda hemen güncelleme kontrolü yap
+        registration.update();
+
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') {
+            registration.update();
+          }
+        });
+
+        // 15 dakikada bir sessizce güncelleme kontrolü yap
+        setInterval(() => {
+          registration.update();
+        }, 15 * 60 * 1000);
       })
       .catch((error) => {
-        console.error('SW Amelesi kapıda takıldı amq:', error);
+        console.error('Service Worker kaydı başarısız:', error);
       });
+
+    // Yeni Service Worker devreye girdiğinde (skipWaiting sonrası) uygulamayı anında en güncel sürüme geçir
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
+    });
   });
 }

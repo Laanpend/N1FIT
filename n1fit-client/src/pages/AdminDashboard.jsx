@@ -1,7 +1,36 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api/axiosConfig';
-import { Search, Calendar, LogOut, Plus, UserPlus, Dumbbell, CreditCard, Edit, Trash2, Radius, Users } from 'lucide-react';
+import { Search, Calendar, LogOut, UserPlus, Dumbbell, CreditCard, Edit, Trash2, Users, Layers, Sparkles, Wallet } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
+const parseJwt = (token) => {
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+            window.atob(base64).split('').map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
+        );
+        return JSON.parse(jsonPayload);
+    } catch {
+        return null;
+    }
+};
+
+const normalizeTurkishSearch = (text) => {
+    if (!text) return '';
+    return String(text)
+        .toLocaleLowerCase('tr-TR')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/ı/g, 'i')
+        .replace(/ğ/g, 'g')
+        .replace(/ü/g, 'u')
+        .replace(/ş/g, 's')
+        .replace(/ö/g, 'o')
+        .replace(/ç/g, 'c')
+        .replace(/\s+/g, ' ')
+        .trim();
+};
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
@@ -12,21 +41,18 @@ const AdminDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [packages, setPackages] = useState([]);
 
-    //BORÇ ÖDEME STATELERİ
     const [showPayDebtModal, setShowPayDebtModal] = useState(false);
     const [paymentAmount, setPaymentAmount] = useState('');
 
-    // ÜYELİK UZATMA STATELERİ
     const [showRenewModal, setShowRenewModal] = useState(false);
     const [selectedRenewMember, setSelectedRenewMember] = useState(null);
-    const [renewForm, setRenewForm] = useState({ packageId: '', paidAmount: '' });
+    const [renewForm, setRenewForm] = useState({ packageId: '', paidAmount: '', startDate: '', endDate: '' });
 
-    // Modal ve Form Stateleri
     const [showModal, setShowModal] = useState(false);
-    const [editingMemberId, setEditingMemberId] = useState(null); // YENİ: Kimi düzenliyoruz?
+    const [editingMemberId, setEditingMemberId] = useState(null);
 
     const [currentPage, setCurrentPage] = useState(1);
-    const recordsPerPage = 10; // Ekranda tek seferde çizilecek adam sayısı
+    const recordsPerPage = 10;
 
     const [formData, setFormData] = useState({
         firstName: '', lastName: '', email: '', password: '',
@@ -35,30 +61,32 @@ const AdminDashboard = () => {
         packageId: '', paidAmount: ''
     });
 
+    const selectedMember = members.find(m => m.id === editingMemberId) || {};
+
     useEffect(() => {
-        setCurrentPage(1);
         const token = localStorage.getItem('n1fit_token');
         if (!token) {
-            navigate('/login');
+            navigate('/admin/login');
             return;
         }
 
-        // Token'ı kontrol et
-        try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            const userRole = payload.role || payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
-
-            if (userRole !== "2" && userRole !== "Admin") {
-                // Adam Admin değilse siktiri çek
-                navigate('/member/dashboard');
-            }
-        } catch {
-            navigate('/login');
+        const payload = parseJwt(token);
+        if (!payload || (payload.exp && payload.exp * 1000 < Date.now())) {
+            localStorage.removeItem('n1fit_token');
+            navigate('/admin/login');
+            return;
         }
+
+        const userRole = payload.role || payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
+
+        if (userRole !== "1" && userRole !== "Admin") {
+            navigate('/');
+            return;
+        }
+
         fetchMembers();
         fetchPackages();
-        api.get('/Admin/packages').then(res => setPackages(res.data)).catch(err => console.log("Paketler patladı", err));
-    }, []);
+    }, [navigate]);
 
     const fetchMembers = async () => {
         try {
@@ -66,68 +94,230 @@ const AdminDashboard = () => {
             const res = await api.get('/Admin/members');
             setMembers(res.data || []);
         } catch (error) {
-            console.error("Veri çekme patladı:", error);
+            console.error("Veri çekme hatası:", error);
         } finally {
             setLoading(false);
         }
     };
+
     const fetchPackages = async () => {
         try {
             const res = await api.get('/Admin/packages');
             setPackages(res.data || []);
-        } catch (err) { console.error("Paketler çekilirken motor yaktı", err); }
+        } catch (err) {
+            console.error("Paketler çekilirken hata oluştu:", err);
+        }
     };
 
-    // YENİ: Yeni Üye Ekle Butonuna Basınca Formu Temizle
     const handleAddNewClick = () => {
         setEditingMemberId(null);
+        const todayStr = new Date().toISOString().split('T')[0];
         setFormData({
             firstName: '', lastName: '', email: '', password: '',
-            subscriptionEndDate: '', phoneNumber: '',
-            membershipStartDate: new Date().toISOString().split('T')[0],
+            subscriptionEndDate: todayStr,
+            phoneNumber: '',
+            membershipStartDate: todayStr,
             packageId: '', paidAmount: ''
         });
         setShowModal(true);
     };
 
-    // YENİ: Düzenle Butonuna Basınca Formu Doldur
     const handleEditClick = (member) => {
         setEditingMemberId(member.id);
 
-        // YENİ: İsim ayıklama motoru (FullName gelirse ortadan ikiye yarıyoruz)
         let ad = member.firstName || '';
         let soyad = member.lastName || '';
 
         if (!ad && !soyad && member.fullName) {
             const parts = member.fullName.trim().split(' ');
-            ad = parts[0]; // İlk kelimeyi Ad yap
-            soyad = parts.slice(1).join(' '); // Kalanları Soyad yap
+            ad = parts[0];
+            soyad = parts.slice(1).join(' ');
         }
 
         setFormData({
             firstName: ad,
             lastName: soyad,
             email: member.email || '',
-            password: '', // Şifreyi boş bırakıyoruz
+            password: '',
             phoneNumber: member.phoneNumber || '',
             membershipStartDate: member.membershipStartDate ? member.membershipStartDate.split('T')[0] : '',
             subscriptionEndDate: member.subscriptionEndDate ? member.subscriptionEndDate.split('T')[0] : '',
             packageId: member.packageId || '',
-            paidAmount: member.paidAmount || 0
+            paidAmount: member.paidAmount ?? 0
         });
         setShowModal(true);
     };
 
-    // YENİ: Sil Butonuna Basınca Acımadan Şutla
     const handleDeleteClick = async (id) => {
-        if (window.confirm("Bu adamı dükkandan kalıcı olarak siliyoruz, emin misin?")) {
+        if (window.confirm("Bu üyeyi sistemden kalıcı olarak siliyoruz, emin misin?")) {
             try {
-                await api.delete(`/Admin/delete-member/${id}`); // C#'ta bu uç yoksa patlarsın haberin olsun!
+                await api.delete(`/Admin/delete-member/${id}`);
                 fetchMembers();
-            } catch (err) {
-                alert("Silerken patladık! C# tarafını kontrol et.");
+            } catch {
+                alert("Üye silinirken bir hata oluştu.");
             }
         }
+    };
+
+    const handleStartDateChange = (newStartDate) => {
+        const selectedPkg = packages.find(p => String(p.id || p.Id) === String(formData.packageId));
+        let calculatedEnd = formData.subscriptionEndDate;
+        if (selectedPkg && newStartDate) {
+            const d = new Date(newStartDate);
+            if (!isNaN(d.getTime())) {
+                const months = Number(selectedPkg.durationMonths || selectedPkg.DurationMonths || 1);
+                d.setMonth(d.getMonth() + months);
+                calculatedEnd = d.toISOString().split('T')[0];
+            }
+        }
+        setFormData({
+            ...formData,
+            membershipStartDate: newStartDate,
+            subscriptionEndDate: calculatedEnd
+        });
+    };
+
+    const handleEndDateChange = (newEndDate) => {
+        setFormData({
+            ...formData,
+            subscriptionEndDate: newEndDate
+        });
+    };
+
+    const handlePackageChangeInNewForm = (pkgId) => {
+        const selectedPkg = packages.find(p => String(p.id || p.Id) === String(pkgId));
+        let calculatedEnd = formData.subscriptionEndDate;
+        const baseStartStr = formData.membershipStartDate || new Date().toISOString().split('T')[0];
+        if (selectedPkg && baseStartStr) {
+            const start = new Date(baseStartStr);
+            if (!isNaN(start.getTime())) {
+                const months = Number(selectedPkg.durationMonths || selectedPkg.DurationMonths || 1);
+                start.setMonth(start.getMonth() + months);
+                calculatedEnd = start.toISOString().split('T')[0];
+            }
+        }
+        setFormData({
+            ...formData,
+            packageId: pkgId,
+            membershipStartDate: baseStartStr,
+            subscriptionEndDate: calculatedEnd
+        });
+    };
+
+    const getDurationSummary = () => {
+        if (!formData.membershipStartDate || !formData.subscriptionEndDate) return null;
+        const start = new Date(formData.membershipStartDate);
+        const end = new Date(formData.subscriptionEndDate);
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+
+        start.setHours(0, 0, 0, 0);
+        end.setHours(0, 0, 0, 0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const diffTime = end.getTime() - start.getTime();
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+        const isFuture = start > today;
+        const daysUntilStart = isFuture ? Math.round((start.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+
+        return {
+            diffDays,
+            approxMonths: (diffDays / 30.4).toFixed(1),
+            isFuture,
+            daysUntilStart,
+            isValid: diffDays > 0
+        };
+    };
+
+    const openRenewModal = (member) => {
+        setSelectedRenewMember(member);
+        const todayStr = new Date().toISOString().split('T')[0];
+        let defaultStart = todayStr;
+        if (member && member.subscriptionEndDate) {
+            const memberEnd = new Date(member.subscriptionEndDate);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (memberEnd > today) {
+                defaultStart = memberEnd.toISOString().split('T')[0];
+            }
+        }
+        setRenewForm({
+            packageId: '',
+            paidAmount: '',
+            startDate: defaultStart,
+            endDate: defaultStart
+        });
+        setShowRenewModal(true);
+    };
+
+    const handleRenewPackageChange = (pkgId) => {
+        const selectedPkg = packages.find(p => String(p.id || p.Id) === String(pkgId));
+        let calculatedEnd = renewForm.endDate;
+        const baseStartStr = renewForm.startDate || new Date().toISOString().split('T')[0];
+        if (selectedPkg && baseStartStr) {
+            const start = new Date(baseStartStr);
+            if (!isNaN(start.getTime())) {
+                const months = Number(selectedPkg.durationMonths || selectedPkg.DurationMonths || 1);
+                start.setMonth(start.getMonth() + months);
+                calculatedEnd = start.toISOString().split('T')[0];
+            }
+        }
+        setRenewForm({
+            ...renewForm,
+            packageId: pkgId,
+            startDate: baseStartStr,
+            endDate: calculatedEnd
+        });
+    };
+
+    const handleRenewStartDateChange = (newStartDate) => {
+        const selectedPkg = packages.find(p => String(p.id || p.Id) === String(renewForm.packageId));
+        let calculatedEnd = renewForm.endDate;
+        if (selectedPkg && newStartDate) {
+            const d = new Date(newStartDate);
+            if (!isNaN(d.getTime())) {
+                const months = Number(selectedPkg.durationMonths || selectedPkg.DurationMonths || 1);
+                d.setMonth(d.getMonth() + months);
+                calculatedEnd = d.toISOString().split('T')[0];
+            }
+        }
+        setRenewForm({
+            ...renewForm,
+            startDate: newStartDate,
+            endDate: calculatedEnd
+        });
+    };
+
+    const handleRenewEndDateChange = (newEndDate) => {
+        setRenewForm({
+            ...renewForm,
+            endDate: newEndDate
+        });
+    };
+
+    const getRenewDurationSummary = () => {
+        if (!renewForm.startDate || !renewForm.endDate) return null;
+        const start = new Date(renewForm.startDate);
+        const end = new Date(renewForm.endDate);
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+
+        start.setHours(0, 0, 0, 0);
+        end.setHours(0, 0, 0, 0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const diffTime = end.getTime() - start.getTime();
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+        const isFuture = start > today;
+        const daysUntilStart = isFuture ? Math.round((start.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+
+        return {
+            diffDays,
+            approxMonths: (diffDays / 30.4).toFixed(1),
+            isFuture,
+            daysUntilStart,
+            isValid: diffDays > 0
+        };
     };
 
     const handleSaveMember = async (e) => {
@@ -135,30 +325,34 @@ const AdminDashboard = () => {
         try {
             const payload = {
                 ...formData,
-                packageId: formData.packageId ? parseInt(formData.packageId) : null,
-                paidAmount: formData.paidAmount ? parseFloat(formData.paidAmount) : 0
+                firstName: formData.firstName.trim(),
+                lastName: formData.lastName.trim(),
+                email: formData.email.trim(),
+                phoneNumber: formData.phoneNumber?.trim() || '',
+                subscriptionEndDate: formData.subscriptionEndDate ? formData.subscriptionEndDate : null,
+                packageId: formData.packageId ? parseInt(formData.packageId, 10) : null,
+                paidAmount: formData.paidAmount !== '' ? parseFloat(formData.paidAmount) : 0
             };
 
             if (editingMemberId) {
-                // Adamı güncelliyoruz (C#'ta update-member ucu olmalı)
                 await api.put(`/Admin/update-member/${editingMemberId}`, payload);
                 alert("Üye bilgileri güncellendi!");
             } else {
-                // Yeni adam ekliyoruz
                 await api.post('/Admin/add-member', payload);
-                alert("Yeni üye dükkana eklendi!");
+                alert("Yeni üye sisteme eklendi!");
             }
 
             setShowModal(false);
             fetchMembers();
         } catch (err) {
-            alert("Kayıt/Güncelleme patladı, C# tarafına giden verilere bak.");
+            alert(err.response?.data?.message || "Kayıt/Güncelleme sırasında bir hata oluştu.");
         }
     };
+
     const handlePayDebt = async () => {
-        if (!paymentAmount || paymentAmount <= 0) return alert("Düzgün rakam gir!");
+        if (!paymentAmount || Number(paymentAmount) <= 0) return alert("Lütfen geçerli bir tutar giriniz!");
+        if (!selectedMember?.id) return;
         try {
-            // PARAYI ÇIPLAK DEĞİL, KUTUYA KOYUP YOLLUYORUZ:
             const payload = {
                 amount: parseFloat(paymentAmount)
             };
@@ -168,33 +362,36 @@ const AdminDashboard = () => {
             alert("Borçtan düşüldü!");
             setShowPayDebtModal(false);
             setPaymentAmount('');
-            fetchMembers(); // Tabloyu ve borcu ekranda anında tazele!
+            fetchMembers();
 
         } catch (err) {
             console.error("Ödeme hatası:", err);
-            alert("Ödeme alınırken motor yaktık!");
+            alert(err.response?.data?.message || "Ödeme alınırken hata oluştu!");
         }
     };
 
     const filteredMembers = (members || []).filter(m => {
         if (!m) return false;
         const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         const startDate = m.membershipStartDate ? new Date(m.membershipStartDate) : null;
+        if (startDate) startDate.setHours(0, 0, 0, 0);
         const endDate = m.subscriptionEndDate ? new Date(m.subscriptionEndDate) : null;
+        if (endDate) endDate.setHours(0, 0, 0, 0);
 
-        const isActive = endDate ? endDate >= today : false;
-
-        // Adam fazla para verdiyse eksiye düşmesin diye Math.max ile 0'a sabitliyoruz
+        const isStarted = !startDate || startDate <= today;
+        const isNotExpired = !endDate || endDate >= today;
+        const isActive = !m.isFrozen && isStarted && isNotExpired;
         const kalanBorc = Math.max(0, (m.totalDebt || 0) - (m.paidAmount || 0));
 
         const name = m.fullName || `${m.firstName || ""} ${m.lastName || ""}`.trim();
-        // searchTerm undefined gelirse patlamasın diye (searchTerm || "") kalkanı ekledik
-        const matchesName = name.toLowerCase().includes((searchTerm || "").toLowerCase());
+        const searchableTarget = normalizeTurkishSearch(`${name} ${m.email || ""} ${m.phoneNumber || ""}`);
+        const searchTokens = normalizeTurkishSearch(searchTerm).split(' ').filter(Boolean);
+        const matchesName = searchTokens.length === 0 || searchTokens.every(token => searchableTarget.includes(token));
 
-
-        // YENİ: CYBORG BORÇ VE DURUM MOTORU (FROZEN VİTESİ EKLENDİ)
         let matchesStatus = true;
-        if (statusFilter === 'Active') matchesStatus = isActive && !m.isFrozen;
+        if (statusFilter === 'Active') matchesStatus = isActive;
         else if (statusFilter === 'Passive') matchesStatus = !isActive && !m.isFrozen;
         else if (statusFilter === 'Frozen') matchesStatus = m.isFrozen === true;
         else if (statusFilter === 'InDebt') matchesStatus = kalanBorc > 0;
@@ -206,21 +403,21 @@ const AdminDashboard = () => {
         return matchesName && matchesStatus && matchesDate;
     });
 
-    if (loading) return <div style={{ color: 'white', padding: '20px' }}>Yükleniyor...</div>;
-    const selectedMember = members.find(m => m.id === editingMemberId) || {};
-    const totalPages = Math.ceil(filteredMembers.length / recordsPerPage);
     const indexOfLastRecord = currentPage * recordsPerPage;
     const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
-
-    // Ekranda sadece bu sayfanın adamlarını çizeceğiz!
     const ekrandaGosterilecekAdamlar = filteredMembers.slice(indexOfFirstRecord, indexOfLastRecord);
+    const totalPages = Math.ceil(filteredMembers.length / recordsPerPage);
+    const durationSummary = getDurationSummary();
+    const renewDurationSummary = getRenewDurationSummary();
 
     return (
         <div style={styles.container}>
             <div style={styles.main}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h2 style={{ color: 'var(--n1fit-red)' }}>N1FIT YÖNETİM</h2>
-                    <button onClick={() => { localStorage.removeItem('n1fit_token'); window.location.href = '/login' }} style={styles.logoutBtn}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+                    <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ color: '#d90429', fontWeight: '900' }}>N1FIT</span> YÖNETİM PANELİ
+                    </h2>
+                    <button onClick={() => { localStorage.removeItem('n1fit_token'); navigate('/admin/login'); }} style={styles.logoutBtn}>
                         <LogOut size={18} /> Çıkış
                     </button>
                 </div>
@@ -229,11 +426,20 @@ const AdminDashboard = () => {
                         <Search size={20} color="#666" />
                         <input
                             placeholder="Müşteri ismini yaz..."
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => {
+                                setSearchTerm(e.target.value);
+                                setCurrentPage(1);
+                            }}
                             style={styles.input}
                         />
                     </div>
-                    <select onChange={(e) => setStatusFilter(e.target.value)} style={styles.select}>
+                    <select
+                        onChange={(e) => {
+                            setStatusFilter(e.target.value);
+                            setCurrentPage(1);
+                        }}
+                        style={styles.select}
+                    >
                         <option value="All">Tüm Liste</option>
                         <option value="Active">Aktifler</option>
                         <option value="Passive">Pasifler</option>
@@ -243,9 +449,23 @@ const AdminDashboard = () => {
                     </select>
                     <div style={styles.dateBox}>
                         <Calendar size={18} color="#d90429" />
-                        <input type="date" onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })} style={styles.dateInput} />
+                        <input
+                            type="date"
+                            onChange={(e) => {
+                                setDateRange({ ...dateRange, start: e.target.value });
+                                setCurrentPage(1);
+                            }}
+                            style={styles.dateInput}
+                        />
                         <span style={{ color: '#666' }}> - </span>
-                        <input type="date" onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })} style={styles.dateInput} />
+                        <input
+                            type="date"
+                            onChange={(e) => {
+                                setDateRange({ ...dateRange, end: e.target.value });
+                                setCurrentPage(1);
+                            }}
+                            style={styles.dateInput}
+                        />
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '20px' }}>
@@ -258,11 +478,17 @@ const AdminDashboard = () => {
                     <button onClick={() => navigate('/admin/packages')} style={styles.libraryBtn}>
                         <CreditCard size={18} /> Üyelik Paketleri
                     </button>
+                    <button onClick={() => navigate('/admin/studio')} style={styles.libraryBtn}>
+                        <Sparkles size={18} color="#d90429" /> Web Stüdyosu
+                    </button>
+                    <button onClick={() => navigate('/admin/finance')} style={styles.libraryBtn}>
+                        <Wallet size={18} color="#d90429" /> Finans & Kasa
+                    </button>
                     <div style={{
-                        marginLeft: 'auto', // Bunu çaktık ki sayacı en sağa, köşeye dayasın fiyakalı dursun
-                        backgroundColor: '#0a0a0a', // İçi zifiri siyah
-                        border: '2px solid #d90429', // Kenarlık kan kırmızı
-                        color: '#d90429', // Yazı da kan kırmızı
+                        marginLeft: 'auto',
+                        backgroundColor: '#0a0a0a',
+                        border: '2px solid #d90429',
+                        color: '#d90429',
                         padding: '8px 16px',
                         borderRadius: '8px',
                         display: 'flex',
@@ -270,7 +496,7 @@ const AdminDashboard = () => {
                         gap: '8px',
                         fontWeight: '900',
                         fontSize: '1.1rem',
-                        boxShadow: '0 0 15px rgba(217, 4, 41, 0.2)' // Hafif neon parlama efekti
+                        boxShadow: '0 0 15px rgba(217, 4, 41, 0.2)'
                     }}>
                         <Users size={20} />
                         LİSTELENEN: {filteredMembers.length}
@@ -290,39 +516,86 @@ const AdminDashboard = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {ekrandaGosterilecekAdamlar.length > 0 ? ekrandaGosterilecekAdamlar.map(m => {
-                                // 1. Bitiş tarihi
-                                const endDate = m.subscriptionEndDate ? new Date(m.subscriptionEndDate) : null;
+                            {loading ? (
+                                <tr><td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#888' }}>Yükleniyor...</td></tr>
+                            ) : ekrandaGosterilecekAdamlar.length > 0 ? ekrandaGosterilecekAdamlar.map(m => {
+                                const today = new Date();
+                                today.setHours(0, 0, 0, 0);
 
-                                // 2. YENİ: Zamanı Dondurma Zekası
-                                let diffTime = 0;
-                                if (endDate) {
-                                    // Eğer adam donuksa, bugünü değil, dondurulduğu günü referans al (zaman dursun)
-                                    const referansTarih = (m.isFrozen && m.freezeDate) ? new Date(m.freezeDate) : new Date();
-                                    diffTime = endDate - referansTarih;
+                                const startDate = m.membershipStartDate ? new Date(m.membershipStartDate) : null;
+                                if (startDate) startDate.setHours(0, 0, 0, 0);
+
+                                const endDate = m.subscriptionEndDate ? new Date(m.subscriptionEndDate) : null;
+                                if (endDate) endDate.setHours(0, 0, 0, 0);
+
+                                const isFrozen = m.isFrozen === true;
+                                const isFuture = startDate && startDate > today;
+                                const isStarted = !startDate || startDate <= today;
+                                const isNotExpired = !endDate || endDate >= today;
+                                const isActive = !isFrozen && isStarted && isNotExpired;
+
+                                let daysLeftText = "-";
+                                let daysLeftColor = "#fff";
+
+                                if (isFuture) {
+                                    const diffToStart = Math.ceil((startDate - today) / (1000 * 60 * 60 * 24));
+                                    daysLeftText = `Başlamasına ${diffToStart} Gün`;
+                                    daysLeftColor = "#f59e0b";
+                                } else if (isFrozen) {
+                                    daysLeftText = "Donduruldu";
+                                    daysLeftColor = "#3b82f6";
+                                } else if (endDate) {
+                                    const diffTime = endDate - today;
+                                    const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                    if (daysLeft < 0) {
+                                        daysLeftText = "Süre Doldu";
+                                        daysLeftColor = "#d90429";
+                                    } else {
+                                        daysLeftText = `${daysLeft} Gün Kaldı`;
+                                        daysLeftColor = daysLeft < 5 ? '#d90429' : '#4ade80';
+                                    }
                                 }
 
-                                // 3. Matematiksel hesaplar (SADECE BİRER KERE YAZIYORUZ AMQ)
-                                const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                                const isActive = daysLeft >= 0;
-                                const kalanBorc = (m.totalDebt || 0) - (m.paidAmount || 0);
-                                const musteriIsmi = m.fullName || `${m.firstName || ""} ${m.lastName || ""}`.trim() || "İsimsiz Canavar";
+                                const kalanBorc = Math.max(0, (m.totalDebt || 0) - (m.paidAmount || 0));
+                                const musteriIsmi = m.fullName || `${m.firstName || ""} ${m.lastName || ""}`.trim() || "İsimsiz Üye";
+
+                                let statusBadgeText = "PASİF";
+                                let statusBadgeBg = "rgba(217, 4, 41, 0.1)";
+                                let statusBadgeColor = "#d90429";
+                                let statusBadgeBorder = "#d90429";
+
+                                if (isFrozen) {
+                                    statusBadgeText = "DONDURULDU";
+                                    statusBadgeBg = "rgba(59, 130, 246, 0.1)";
+                                    statusBadgeColor = "#3b82f6";
+                                    statusBadgeBorder = "#3b82f6";
+                                } else if (isFuture) {
+                                    statusBadgeText = "PASİF (BAŞLAMADI)";
+                                    statusBadgeBg = "rgba(245, 158, 11, 0.12)";
+                                    statusBadgeColor = "#f59e0b";
+                                    statusBadgeBorder = "#f59e0b";
+                                } else if (isActive) {
+                                    statusBadgeText = "AKTİF";
+                                    statusBadgeBg = "rgba(74, 222, 128, 0.1)";
+                                    statusBadgeColor = "#4ade80";
+                                    statusBadgeBorder = "#4ade80";
+                                }
+
                                 return (
                                     <tr key={m.id} style={styles.tableRow}>
                                         <td style={{ fontWeight: 'bold' }}>{musteriIsmi}</td>
                                         <td>{m.phoneNumber || "-"}</td>
                                         <td>
-                                            <div style={{ fontSize: '0.85rem' }}>Bşl: {m.membershipStartDate ? new Date(m.membershipStartDate).toLocaleDateString() : "-"}</div>
-                                            <div style={{ fontSize: '0.85rem', color: '#aaa' }}>Bit: {endDate && endDate.getFullYear() > 1970 ? endDate.toLocaleDateString() : "-"}</div>
+                                            <div style={{ fontSize: '0.85rem' }}>Bşl: {m.membershipStartDate ? new Date(m.membershipStartDate).toLocaleDateString('tr-TR') : "-"}</div>
+                                            <div style={{ fontSize: '0.85rem', color: '#aaa' }}>Bit: {endDate && endDate.getFullYear() > 1970 ? endDate.toLocaleDateString('tr-TR') : "-"}</div>
                                         </td>
-                                        <td style={{ color: daysLeft < 5 ? '#d90429' : '#fff' }}>
-                                            {daysLeft > 0 ? `${daysLeft} Gün` : "Süre Doldu"}
+                                        <td style={{ color: daysLeftColor, fontWeight: 'bold' }}>
+                                            {daysLeftText}
                                         </td>
                                         <td style={{ fontWeight: 'bold' }}>
                                             {kalanBorc > 0 ? (
                                                 <span style={{ color: '#d90429' }}>{kalanBorc} TL Borçlu</span>
                                             ) : (
-                                                /* İŞTE SENİN VİZYONUN: Adam aktifse Temiz yaz, süresi bittiyse Üyelik Bitti yaz amq! */
                                                 <span style={{ color: isActive ? '#4ade80' : '#888' }}>
                                                     {isActive ? 'Temiz' : 'Üyelik Bitti'}
                                                 </span>
@@ -331,15 +604,14 @@ const AdminDashboard = () => {
                                         <td>
                                             <div style={{
                                                 ...styles.badge,
-                                                backgroundColor: m.isFrozen ? 'rgba(59, 130, 246, 0.1)' : (isActive ? 'rgba(74, 222, 128, 0.1)' : 'rgba(217, 4, 41, 0.1)'),
-                                                color: m.isFrozen ? '#3b82f6' : (isActive ? '#4ade80' : '#d90429'),
-                                                border: `1px solid ${m.isFrozen ? '#3b82f6' : (isActive ? '#4ade80' : '#d90429')}`
+                                                backgroundColor: statusBadgeBg,
+                                                color: statusBadgeColor,
+                                                border: `1px solid ${statusBadgeBorder}`
                                             }}>
-                                                {m.isFrozen ? 'DONDURULDU' : (isActive ? 'AKTİF' : 'PASİF')}
+                                                {statusBadgeText}
                                             </div>
                                         </td>
                                         <td>
-                                            {/* YENİ: İŞLEM BUTONLARI */}
                                             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                                 <button onClick={() => navigate(`/admin/member/${m.id}`)} style={{ ...styles.actionBtn, backgroundColor: '#1a1a1a', border: '1px solid #444' }}>
                                                     Aç
@@ -362,8 +634,6 @@ const AdminDashboard = () => {
                                                 </button>
                                             </div>
                                         </td>
-
-
                                     </tr>
                                 );
                             }) : (
@@ -372,7 +642,6 @@ const AdminDashboard = () => {
                         </tbody>
                     </table>
                 </div>
-                {/* YENİ: İLERİ GERİ VİTESİ (SAYFALAMA BUTONLARI) */}
                 {totalPages > 1 && (
                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', marginTop: '20px', paddingBottom: '20px' }}>
                         <button
@@ -395,16 +664,14 @@ const AdminDashboard = () => {
                     </div>
                 )}
             </div>
-            {/* YENİ ÜYE / ÜYE DÜZENLE MODALI */}
+
             {showModal && (
                 <div style={styles.modalBackdrop}>
-                    <div style={styles.modalContent}>
+                    <div style={styles.modalContentMain}>
                         <h3 style={{ color: 'white', marginBottom: '20px', marginTop: 0 }}>
                             {editingMemberId ? 'Üye Bilgilerini Düzenle' : 'Yeni Üye Kaydı'}
                         </h3>
                         <form onSubmit={handleSaveMember} style={styles.modalForm}>
-
-                            {/* ORTAK ALANLAR: Ad, Soyad, Telefon, E-Posta, Şifre */}
                             <div style={{ display: 'flex', gap: '10px' }}>
                                 <input style={{ ...styles.modalInput, flex: 1 }} placeholder="Ad" value={formData.firstName} onChange={e => setFormData({ ...formData, firstName: e.target.value })} required />
                                 <input style={{ ...styles.modalInput, flex: 1 }} placeholder="Soyad" value={formData.lastName} onChange={e => setFormData({ ...formData, lastName: e.target.value })} required />
@@ -413,27 +680,68 @@ const AdminDashboard = () => {
                             <input style={styles.modalInput} placeholder="E-Posta" type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} required />
                             <input style={styles.modalInput} placeholder={editingMemberId ? "Şifre (Değişmeyecekse boş bırak)" : "Şifre"} type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} required={!editingMemberId} />
 
-                            {/* ==================================================== */}
-                            {/* SADECE "YENİ ÜYE" İÇİN GÖRÜNECEK ALANLAR */}
-                            {/* ==================================================== */}
+                            {/* BAŞLAMA VE BİTİŞ TARİHLERİ */}
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={styles.smallLabel}>Başlama Tarihi:</label>
+                                    <input
+                                        style={{ ...styles.modalInput, width: '100%', boxSizing: 'border-box' }}
+                                        type="date"
+                                        value={formData.membershipStartDate}
+                                        onChange={e => handleStartDateChange(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <label style={styles.smallLabel}>Bitiş Tarihi:</label>
+                                    <input
+                                        style={{ ...styles.modalInput, width: '100%', boxSizing: 'border-box' }}
+                                        type="date"
+                                        value={formData.subscriptionEndDate}
+                                        onChange={e => handleEndDateChange(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            {/* CANLI SÜRE VE AKTİFLİK DURUM KARTI */}
+                            {durationSummary && (
+                                <div style={{
+                                    backgroundColor: durationSummary.isValid ? (durationSummary.isFuture ? 'rgba(245, 158, 11, 0.12)' : 'rgba(74, 222, 128, 0.1)') : 'rgba(217, 4, 41, 0.15)',
+                                    border: `1px solid ${durationSummary.isValid ? (durationSummary.isFuture ? '#f59e0b' : '#4ade80') : '#d90429'}`,
+                                    borderRadius: '8px',
+                                    padding: '10px 14px',
+                                    fontSize: '0.85rem'
+                                }}>
+                                    {durationSummary.isValid ? (
+                                        <div>
+                                            <div style={{ fontWeight: 'bold', color: durationSummary.isFuture ? '#fcd34d' : '#4ade80', display: 'flex', justifyContent: 'space-between' }}>
+                                                <span>📅 Toplam Süre: {durationSummary.diffDays} Gün (~{durationSummary.approxMonths} Ay)</span>
+                                                <span>{durationSummary.isFuture ? '⏳ PASİF BAŞLAYACAK' : '✅ ANINDA AKTİF'}</span>
+                                            </div>
+                                            <div style={{ color: '#ccc', marginTop: '5px', fontSize: '0.8rem', lineHeight: '1.4' }}>
+                                                {durationSummary.isFuture ? (
+                                                    <>Başlangıç tarihi ileri bir tarih ({new Date(formData.membershipStartDate).toLocaleDateString('tr-TR')}) olduğu için üyelik o güne kadar <strong>PASİF</strong> kalacak, o gün geldiğinde sistem tarafından otomatik <strong>AKTİF</strong> konuma geçecektir.</>
+                                                ) : (
+                                                    <>Başlangıç tarihi bugünü kapsadığı için üyelik kayıttan itibaren doğrudan <strong>AKTİF</strong> olacaktır.</>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div style={{ color: '#fca5a5', fontWeight: 'bold' }}>
+                                            ⚠️ Bitiş tarihi başlangıç tarihinden sonraki bir tarih olmalıdır!
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {!editingMemberId && (
                                 <>
-                                    <div style={{ display: 'flex', gap: '10px' }}>
-                                        <div style={{ flex: 1 }}>
-                                            <label style={styles.smallLabel}>Başlama Tarihi:</label>
-                                            <input style={{ ...styles.modalInput, width: '100%', boxSizing: 'border-box' }} type="date" value={formData.membershipStartDate} onChange={e => setFormData({ ...formData, membershipStartDate: e.target.value })} required />
-                                        </div>
-                                        <div style={{ flex: 1 }}>
-                                            <label style={styles.smallLabel}>Bitiş Tarihi:</label>
-                                            <input style={{ ...styles.modalInput, width: '100%', boxSizing: 'border-box' }} type="date" value={formData.subscriptionEndDate} onChange={e => setFormData({ ...formData, subscriptionEndDate: e.target.value })} required />
-                                        </div>
-                                    </div>
-
                                     <label style={styles.smallLabel}>Üyelik Paketi Seç:</label>
-                                    <select style={styles.modalInput} value={formData.packageId} onChange={e => setFormData({ ...formData, packageId: e.target.value })} required>
+                                    <select style={styles.modalInput} value={formData.packageId} onChange={e => handlePackageChangeInNewForm(e.target.value)} required>
                                         <option value="">Paket Seç...</option>
                                         {packages.map(p => (
-                                            <option key={p.id || p.Id} value={p.id || p.Id}>{p.name || p.Name} - {p.price || p.Price} TL</option>
+                                            <option key={p.id || p.Id} value={p.id || p.Id}>{p.name || p.Name} - {p.price || p.Price} TL ({p.durationMonths || p.DurationMonths} Ay)</option>
                                         ))}
                                     </select>
 
@@ -442,33 +750,32 @@ const AdminDashboard = () => {
                                 </>
                             )}
 
-                            {/* ANA KAYDET/GÜNCELLE BUTONU (Her iki durumda da var) */}
                             <div style={styles.modalActions}>
                                 <button type="button" onClick={() => setShowModal(false)} style={styles.cancelBtn}>İPTAL</button>
-                                <button type="submit" style={styles.saveBtn}>{editingMemberId ? 'BİLGİLERİ GÜNCELLE' : 'KAYDET VE BORÇLANDIR'}</button>
+                                <button
+                                    type="submit"
+                                    disabled={durationSummary && !durationSummary.isValid}
+                                    style={{
+                                        ...styles.saveBtn,
+                                        opacity: durationSummary && !durationSummary.isValid ? 0.5 : 1,
+                                        cursor: durationSummary && !durationSummary.isValid ? 'not-allowed' : 'pointer'
+                                    }}
+                                >
+                                    {editingMemberId ? 'BİLGİLERİ GÜNCELLE' : 'KAYDET VE BORÇLANDIR'}
+                                </button>
                             </div>
                         </form>
 
-                        {/* ==================================================== */}
-                        {/* SADECE "ÜYE DÜZENLE" İÇİN ÇIKAN EKSTRA BUTONLAR */}
-                        {/* ==================================================== */}
                         {editingMemberId && (
                             <div style={{ marginTop: '25px', paddingTop: '20px', borderTop: '1px solid #333', display: 'flex', gap: '10px' }}>
-
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        // Uzatma modalına gerekli veriyi basıyoruz
-                                        setSelectedRenewMember(selectedMember);
-                                        setShowRenewModal(true);
-                                        // İstersen ana modalı kapatabilirsin: setShowModal(false);
-                                    }}
+                                    onClick={() => openRenewModal(selectedMember)}
                                     style={{ ...styles.submitBtn, backgroundColor: '#3b82f6', color: 'white', flex: 1, padding: '10px', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer' }}
                                 >
                                     + ÜYELİĞİ UZAT
                                 </button>
 
-                                {/* Eğer adamın borcu varsa Borç Öde butonu da çıksın */}
                                 {selectedMember && ((selectedMember.totalDebt || 0) - (selectedMember.paidAmount || 0)) > 0 && (
                                     <button
                                         type="button"
@@ -483,26 +790,79 @@ const AdminDashboard = () => {
                     </div>
                 </div>
             )}
-            {/* ÜYELİK UZATMA MODALI (ANA SAYFA İÇİN) */}
+
             {showRenewModal && selectedRenewMember && (
                 <div style={styles.modalOverlay}>
                     <div style={styles.modalContent}>
                         <h2 style={{ marginTop: 0, color: '#4ade80', borderBottom: '1px solid #333', paddingBottom: '10px' }}>
-                            {selectedRenewMember.firstName} İçin Üyelik Yenile
+                            {selectedRenewMember.firstName || selectedRenewMember.fullName} İçin Üyelik Yenile / Uzat
                         </h2>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
+                            {/* BAŞLAMA VE BİTİŞ TARİHLERİ */}
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={styles.modalLabel}>Uzatma Başlangıç Tarihi:</label>
+                                    <input
+                                        style={{ ...styles.input, width: '100%', boxSizing: 'border-box', backgroundColor: '#1a1a1a', color: 'white', padding: '10px', borderRadius: '8px', border: '1px solid #333' }}
+                                        type="date"
+                                        value={renewForm.startDate}
+                                        onChange={e => handleRenewStartDateChange(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <label style={styles.modalLabel}>Uzatma Bitiş Tarihi:</label>
+                                    <input
+                                        style={{ ...styles.input, width: '100%', boxSizing: 'border-box', backgroundColor: '#1a1a1a', color: 'white', padding: '10px', borderRadius: '8px', border: '1px solid #333' }}
+                                        type="date"
+                                        value={renewForm.endDate}
+                                        onChange={e => handleRenewEndDateChange(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            {/* CANLI SÜRE VE AKTİFLİK DURUM KARTI */}
+                            {renewDurationSummary && (
+                                <div style={{
+                                    backgroundColor: renewDurationSummary.isValid ? (renewDurationSummary.isFuture ? 'rgba(245, 158, 11, 0.12)' : 'rgba(74, 222, 128, 0.1)') : 'rgba(217, 4, 41, 0.15)',
+                                    border: `1px solid ${renewDurationSummary.isValid ? (renewDurationSummary.isFuture ? '#f59e0b' : '#4ade80') : '#d90429'}`,
+                                    borderRadius: '8px',
+                                    padding: '10px 14px',
+                                    fontSize: '0.85rem'
+                                }}>
+                                    {renewDurationSummary.isValid ? (
+                                        <div>
+                                            <div style={{ fontWeight: 'bold', color: renewDurationSummary.isFuture ? '#fcd34d' : '#4ade80', display: 'flex', justifyContent: 'space-between' }}>
+                                                <span>📅 Uzatılacak Süre: {renewDurationSummary.diffDays} Gün (~{renewDurationSummary.approxMonths} Ay)</span>
+                                                <span>{renewDurationSummary.isFuture ? '⏳ İLERİDE AKTİF' : '✅ ANINDA AKTİF'}</span>
+                                            </div>
+                                            <div style={{ color: '#ccc', marginTop: '5px', fontSize: '0.8rem', lineHeight: '1.4' }}>
+                                                {renewDurationSummary.isFuture ? (
+                                                    <>Başlangıç tarihi ileri bir tarih ({new Date(renewForm.startDate).toLocaleDateString('tr-TR')}) olduğu için yeni dönem o güne kadar beklemede kalır, o gün geldiğinde otomatik olarak devreye girer.</>
+                                                ) : (
+                                                    <>Uzatılan üyelik süresi seçilen tarihten itibaren kesintisiz devam edecektir.</>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div style={{ color: '#fca5a5', fontWeight: 'bold' }}>
+                                            ⚠️ Bitiş tarihi başlangıç tarihinden sonraki bir tarih olmalıdır!
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             <div>
                                 <label style={styles.modalLabel}>Uzatılacak Paket</label>
-                                {/* DİKKAT: Elle girmek yok, aslanlar gibi paket seçiyoruz! */}
                                 <select
                                     style={styles.input}
                                     value={renewForm.packageId}
-                                    onChange={e => setRenewForm({ ...renewForm, packageId: e.target.value })}
+                                    onChange={e => handleRenewPackageChange(e.target.value)}
                                 >
                                     <option value="" style={{ backgroundColor: '#1a1a1a', color: 'white' }}>Paket Seçiniz...</option>
                                     {packages.map(p => (
-                                        // DİKKAT: Option içine backgroundColor verdik ki beyaza dönmesin!
                                         <option key={p.id || p.Id} value={p.id || p.Id} style={{ backgroundColor: '#1a1a1a', color: 'white' }}>
                                             {p.name || p.Name} - {p.price || p.Price} ₺ ({p.durationMonths || p.DurationMonths} Ay)
                                         </option>
@@ -511,9 +871,9 @@ const AdminDashboard = () => {
                             </div>
 
                             <div>
-                                <label style={styles.modalLabel}>Şu An Peşin Ödenen (TL)</label>
+                                <label style={styles.modalLabel}>Alınan Ödeme (Peşinat)</label>
                                 <input
-                                    style={{ ...styles.input, border: '1px solid #edf2f4', borderRadius: '8px', backgroundColor: '#1a1a1a', color: 'white' }}
+                                    style={{ ...styles.input, border: '1px solid #edf2f4', borderRadius: '8px', backgroundColor: '#1a1a1a', color: 'white', padding: '10px' }}
                                     type="number"
                                     step="0.1"
                                     placeholder="Kasaya giren nakit"
@@ -521,7 +881,7 @@ const AdminDashboard = () => {
                                     onChange={e => setRenewForm({ ...renewForm, paidAmount: e.target.value })}
                                 />
                                 <span style={{ fontSize: '0.8rem', color: '#888', marginTop: '5px', display: 'block' }}>
-                                    Not: Paketin fiyatı adamın eski borcunun üstüne otomatik eklenecektir.
+                                    Not: Paketin fiyatı üyenin eski borcunun üstüne otomatik eklenecektir.
                                 </span>
                             </div>
 
@@ -529,28 +889,45 @@ const AdminDashboard = () => {
                                 <button
                                     onClick={async () => {
                                         if (!renewForm.packageId) return alert("Paket Seçiniz!");
+                                        if (renewDurationSummary && !renewDurationSummary.isValid) {
+                                            return alert("Bitiş tarihi başlangıç tarihinden sonraki bir tarih olmalıdır!");
+                                        }
                                         try {
                                             const payload = {
-                                                packageId: parseInt(renewForm.packageId),
-                                                paidAmount: parseFloat(renewForm.paidAmount) || 0
+                                                packageId: parseInt(renewForm.packageId, 10),
+                                                paidAmount: parseFloat(renewForm.paidAmount) || 0,
+                                                startDate: renewForm.startDate || null,
+                                                endDate: renewForm.endDate || null
                                             };
                                             await api.post(`/Admin/members/${selectedRenewMember.id}/renew`, payload);
                                             alert("Üyelik Süresi Uzatıldı!");
                                             setShowRenewModal(false);
                                             fetchMembers();
-                                        } catch (err) {
-                                            alert("Yenilerken motor yaktık dayı!");
+                                        } catch {
+                                            alert("Üyelik uzatılırken bir hata oluştu!");
                                         }
                                     }}
-                                    // YENİ ONAYLA BUTONU JİLETİ
-                                    style={{ backgroundColor: '#4ade80', color: '#0a0a0a', border: 'none', padding: '12px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: '900', flex: 1, textTransform: 'uppercase', fontSize: '0.9rem', boxShadow: '0 4px 10px rgba(74, 222, 128, 0.2)' }}
+                                    disabled={renewDurationSummary && !renewDurationSummary.isValid}
+                                    style={{
+                                        backgroundColor: '#4ade80',
+                                        color: '#0a0a0a',
+                                        border: 'none',
+                                        padding: '12px 20px',
+                                        borderRadius: '8px',
+                                        cursor: renewDurationSummary && !renewDurationSummary.isValid ? 'not-allowed' : 'pointer',
+                                        fontWeight: '900',
+                                        flex: 1,
+                                        textTransform: 'uppercase',
+                                        fontSize: '0.9rem',
+                                        boxShadow: '0 4px 10px rgba(74, 222, 128, 0.2)',
+                                        opacity: renewDurationSummary && !renewDurationSummary.isValid ? 0.5 : 1
+                                    }}
                                 >
                                     Onayla ve Uzat
                                 </button>
 
                                 <button
                                     onClick={() => setShowRenewModal(false)}
-                                    // YENİ İPTAL BUTONU JİLETİ
                                     style={{ backgroundColor: 'transparent', color: '#d90429', border: '2px solid #d90429', padding: '12px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: '900', flex: 1, textTransform: 'uppercase', fontSize: '0.9rem' }}
                                 >
                                     İptal Et
@@ -560,17 +937,18 @@ const AdminDashboard = () => {
                     </div>
                 </div>
             )}
+
             {showPayDebtModal && (
                 <div style={styles.modalOverlay}>
                     <div style={styles.modalContent}>
                         <h3 style={{ color: '#d90429', marginTop: 0 }}>Borç Tahsilatı</h3>
                         <p style={{ color: '#aaa', fontSize: '0.9rem' }}>
-                            Kalan Borç: {selectedMember.totalDebt - selectedMember.paidAmount} TL
+                            Kalan Borç: {Math.max(0, (selectedMember.totalDebt || 0) - (selectedMember.paidAmount || 0))} TL
                         </p>
                         <div style={{ marginTop: '15px' }}>
                             <label style={styles.modalLabel}>Ödenen Miktar (TL)</label>
                             <input
-                                style={styles.input}
+                                style={{ ...styles.input, backgroundColor: '#1a1a1a', padding: '10px', border: '1px solid #333', borderRadius: '8px' }}
                                 type="number"
                                 value={paymentAmount}
                                 onChange={e => setPaymentAmount(e.target.value)}
@@ -578,10 +956,10 @@ const AdminDashboard = () => {
                             />
                         </div>
                         <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                            <button onClick={handlePayDebt} style={{ ...styles.submitBtn, backgroundColor: '#d90429', color: 'white', flex: 1 }}>
+                            <button onClick={handlePayDebt} style={{ backgroundColor: '#d90429', color: 'white', flex: 1, padding: '10px', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
                                 ÖDEMEYİ AL
                             </button>
-                            <button onClick={() => setShowPayDebtModal(false)} style={{ ...styles.submitBtn, backgroundColor: '#444', color: 'white', flex: 1 }}>
+                            <button onClick={() => setShowPayDebtModal(false)} style={{ backgroundColor: '#444', color: 'white', flex: 1, padding: '10px', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
                                 İPTAL
                             </button>
                         </div>
@@ -609,33 +987,32 @@ const styles = {
     logoutBtn: { backgroundColor: 'transparent', color: '#666', border: '1px solid #333', padding: '8px 15px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' },
     addBtn: { backgroundColor: '#111', color: '#d90429', border: '1px solid #d90429', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 'bold', fontSize: '1rem', transition: '0.3s' },
     libraryBtn: { backgroundColor: '#111', color: '#d90429', border: '1px solid #d90429', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 'bold', fontSize: '1rem', transition: '0.3s' },
-    actionBtn: { padding: '6px 10px', color: 'white', borderRadius: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }, // YENİ BUTON STİLİ
+    actionBtn: { padding: '6px 10px', color: 'white', borderRadius: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
     modalBackdrop: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
-    modalContent: { backgroundColor: '#111', padding: '30px', borderRadius: '15px', border: '2px solid #d90429', width: '450px', boxShadow: '0 0 20px rgba(217, 4, 41, 0.3)' },
+    modalContentMain: { backgroundColor: '#111', padding: '30px', borderRadius: '15px', border: '2px solid #d90429', width: '450px', boxShadow: '0 0 20px rgba(217, 4, 41, 0.3)' },
     modalForm: { display: 'flex', flexDirection: 'column', gap: '15px' },
     modalInput: { padding: '10px', backgroundColor: '#1a1a1a', border: '1px solid #333', color: 'white', borderRadius: '8px', outline: 'none' },
     smallLabel: { color: '#aaa', fontSize: '0.85rem', marginBottom: '3px', display: 'block' },
     modalActions: { display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' },
     saveBtn: { backgroundColor: '#d90429', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' },
     cancelBtn: { backgroundColor: '#333', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer' },
-    // MODALI GÖBEĞE ZIMBALAYAN CSS MOTORU
     modalOverlay: {
         position: 'fixed',
-        top: 0, left: 0, right: 0, bottom: 0, // Dört köşeden gerdiriyoruz amq
+        top: 0, left: 0, right: 0, bottom: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.7)',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        zIndex: 9999 // En üstte kalması için mermi
+        zIndex: 9999
     },
     modalContent: {
         backgroundColor: '#111',
         padding: '30px',
-        borderRadius: '16px', // Senin istediğin o fiyakalı radius!
+        borderRadius: '16px',
         border: '1px solid #333',
         width: '90%',
         maxWidth: '420px',
-        boxShadow: '0 20px 50px rgba(0,0,0,0.8)' // Derinlik efekti
+        boxShadow: '0 20px 50px rgba(0,0,0,0.8)'
     },
     modalLabel: { color: '#888', fontSize: '0.85rem', marginBottom: '8px', display: 'block', textTransform: 'uppercase', fontWeight: 'bold' }
 };

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import api from '../api/axiosConfig';
-import { LogIn, Dumbbell } from 'lucide-react'; // İkonlar için
+import { LogIn, Dumbbell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
@@ -9,45 +9,45 @@ const Login = () => {
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
-   const parseJwt = (token) => {
+    const parseJwt = (token) => {
         try {
             const base64Url = token.split('.')[1];
             const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-            const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+            const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
                 return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
             }).join(''));
             return JSON.parse(jsonPayload);
-        } catch (e) {
+        } catch {
             return null;
         }
     };
 
     const handleLogin = async (e) => {
         e.preventDefault();
+        setError('');
         try {
-            const res = await api.post('/Auth/login', { email, password });
-            const token = res.data.token;
+            const res = await api.post('/Auth/login', { email: email.trim(), password });
+            const token = res.data.token || res.data.Token;
 
-            // CYBORG ÇÖZÜCÜYÜ KULLANIYORUZ
             const payload = parseJwt(token);
-            
+
             if (!payload) {
-                setError("Token parçalanamadı dayı, sistemde arıza var.");
+                setError("Token çözümlenemedi, sistemde arıza var.");
                 return;
             }
 
             const userRole = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role;
 
-            if (userRole !== 'Admin') {
-                setError("Aslanım burası yönetim kapısı, müşteriysen ana sayfadan gir!");
-                return; 
+            if (userRole !== 'Admin' && userRole !== '1') {
+                setError("Burası yönetim girişidir, üye girişi için ana sayfayı kullanın!");
+                return;
             }
 
             localStorage.setItem('n1fit_token', token);
             navigate('/admin');
-            
+
         } catch (err) {
-            setError('Şifreyi veya maili yanlış girdin.');
+            setError(err.response?.data?.message || 'Şifreyi veya e-postayı yanlış girdiniz.');
         }
     };
 
@@ -58,26 +58,26 @@ const Login = () => {
                     <Dumbbell size={40} color="var(--n1fit-red)" />
                     <h1 style={styles.title}>N1FIT</h1>
                 </div>
-                
+
                 <form onSubmit={handleLogin} style={styles.form}>
                     <div style={styles.inputGroup}>
                         <label>E-Posta</label>
-                        <input 
-                            type="email" 
-                            value={email} 
-                            onChange={(e) => setEmail(e.target.value)} 
+                        <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             placeholder="canavar@n1fit.com"
-                            required 
+                            required
                         />
                     </div>
                     <div style={styles.inputGroup}>
                         <label>Şifre</label>
-                        <input 
-                            type="password" 
-                            value={password} 
-                            onChange={(e) => setPassword(e.target.value)} 
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
                             placeholder="********"
-                            required 
+                            required
                         />
                     </div>
                     {error && <p style={styles.error}>{error}</p>}
@@ -91,7 +91,6 @@ const Login = () => {
     );
 };
 
-// Satır içi stiller (CSS dosyasını da kullanabilirsin ama böyle daha hızlı olur)
 const styles = {
     container: {
         height: '100vh',

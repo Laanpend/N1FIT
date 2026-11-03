@@ -6,42 +6,31 @@ export const usePWA = () => {
 
     useEffect(() => {
         const handleBeforeInstallPrompt = (e) => {
-            // Tarayıcının kendi kendine çıkardığı o sikko uyarıyı engelle!
             e.preventDefault();
-            // Mermiyi cebimize koyuyoruz
             setDeferredPrompt(e);
             setIsInstallable(true);
         };
 
-        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-        // Eğer adam uygulamayı başarıyla kurarsa tetiklenir
-        window.addEventListener('appinstalled', () => {
+        const handleAppInstalled = () => {
             setDeferredPrompt(null);
             setIsInstallable(false);
-            console.log('N1FIT Telefona İndi Aslanım!');
-        });
+        };
+
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        window.addEventListener('appinstalled', handleAppInstalled);
 
         return () => {
             window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+            window.removeEventListener('appinstalled', handleAppInstalled);
         };
     }, []);
 
     const installPWA = async () => {
         if (!deferredPrompt) return;
-        
-        // Müşterinin önüne o "Ana Ekrana Ekle" sorusunu fırlat!
+
         deferredPrompt.prompt();
-        
-        // Adamın ne cevap verdiğini bekle
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-            console.log('Adam dükkanı ana ekrana kurdu!');
-        } else {
-            console.log('Adam vazgeçti amq!');
-        }
-        
-        // Soru sorulduğu için mermiyi boşa çıkar
+        await deferredPrompt.userChoice;
+
         setDeferredPrompt(null);
         setIsInstallable(false);
     };

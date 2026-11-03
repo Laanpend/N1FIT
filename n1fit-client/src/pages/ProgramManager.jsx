@@ -3,7 +3,22 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Dumbbell, Utensils, Plus, ChevronDown, ChevronRight, Trash2, Pencil, Clock } from 'lucide-react';
 import api from '../api/axiosConfig';
 
-const MUSCLE_GROUPS = ['Göğüs', 'Sırt', 'Omuz', 'Ön Kol (Biceps)', 'Arka Kol (Triceps)', 'Bacak', 'Karın (Abs)', 'Kardiyo'];
+const MUSCLE_GROUPS = [
+    'Göğüs',
+    'Omuz',
+    'Arka Omuz',
+    'Biceps (Ön Kol)',
+    'Triceps (Arka Kol)',
+    'Sırt & Kanat',
+    'Trapez & Üst Sırt',
+    'Bel & Alt Sırt',
+    'Karın (Abs & Core)',
+    'Ön Bacak (Quadriceps)',
+    'Arka Bacak (Hamstrings)',
+    'Kalça (Gluteus)',
+    'Kalf & Baldır',
+    'Kardiyo'
+];
 
 const ProgramManager = () => {
     const { id } = useParams();
@@ -14,7 +29,6 @@ const ProgramManager = () => {
     // ==========================================
     // ANTRENMAN STATE'LERİ
     // ==========================================
-    // YENİ: Gerçek hareketleri SQL'den çekip buraya basacağız
     const [dbExercises, setDbExercises] = useState([]);
     
     const [days, setDays] = useState([
@@ -39,19 +53,16 @@ const ProgramManager = () => {
     useEffect(() => {
         const loadInitialData = async () => {
             try {
-                // 1. Adamın ismini çek
-                api.get(`/Admin/members/${id}`).then(res => setMember(res.data)).catch(err => console.log(err));
+                api.get(`/Admin/members/${id}`).then(res => setMember(res.data)).catch(err => console.error(err));
                 
-                // 2. ÖNCE HAREKET KÜTÜPHANESİNİ ÇEKİYORUZ (Çünkü programı buna göre dizeceğiz)
                 const exRes = await api.get('/Admin/exercises');
                 const fetchedExercises = exRes.data || [];
                 setDbExercises(fetchedExercises);
 
-                // 3. ADAMIN KAYITLI ANTRENMAN VE BESLENME PROGRAMINI ÇEK
                 fetchExistingDiet();
-                fetchExistingProgram(fetchedExercises); // Hareketi bulabilsin diye içeri yolluyoruz
+                fetchExistingProgram(fetchedExercises);
             } catch (error) {
-                console.error("Ana verileri çekerken tesisat patladı", error);
+                console.error("Ana verileri çekerken hata oluştu:", error);
             }
         };
 
@@ -65,7 +76,7 @@ const ProgramManager = () => {
                 setMeals(res.data);
             }
         } catch (err) {
-            console.log("Diyet çekilirken patladı");
+            console.error("Diyet çekilirken hata:", err);
         }
     };
 
@@ -77,9 +88,8 @@ const ProgramManager = () => {
                 const formattedDays = program.days.map(day => ({
                     id: day.id,
                     title: day.title,
-                    exercises: day.exercises.map(ex => {
-                        // DUMMY SAÇMALIĞI YERİNE ARTIK GERÇEK SQL VERİLERİYLE EŞLEŞTİRİYORUZ
-                        const baseEx = allExercises.find(d => d.id === ex.exerciseId) || { name: 'Bilinmeyen Hareket (Silinmiş Olabilir)', muscleGroup: 'Bilinmiyor', type: 'weight' };
+                    exercises: (day.exercises || []).map(ex => {
+                        const baseEx = allExercises.find(d => d.id === ex.exerciseId) || { id: ex.exerciseId, name: ex.exerciseName || 'Bilinmeyen Hareket (Silinmiş Olabilir)', muscleGroup: 'Bilinmiyor', type: 'weight' };
                         return {
                             ...baseEx,
                             uniqueId: Math.random(), 
@@ -101,24 +111,24 @@ const ProgramManager = () => {
                 setDays([]);
             }
         } catch (err) {
-            console.log("Adamın programını çekerken patladık dayı: ", err);
+            console.error("Program çekilirken hata:", err);
         }
     };
 
     const saveFullDietProgram = async () => {
-    try {
-        const payload = {
-            meals: meals.map(m => ({
-                mealName: m.mealName,
-                time: m.time,
-                content: m.content
-            }))
-        };
+        try {
+            const payload = {
+                meals: meals.map(m => ({
+                    mealName: m.mealName,
+                    time: m.time,
+                    content: m.content
+                }))
+            };
             await api.post(`/Admin/members/${id}/diet-program`, payload);
-            alert("Beslenme programı beton gibi SQL'e oturdu!");
+            alert("Beslenme programı kaydedildi!");
         } catch (err) {
             console.error(err);
-            alert("Mutfakta yangın çıktı, kaydolmadı!");
+            alert("Beslenme programı kaydedilemedi!");
         }
     };
 
@@ -166,9 +176,8 @@ const ProgramManager = () => {
     const saveExerciseToDay = (e) => {
         e.preventDefault();
         
-        // Eğer hiç gün yoksa adamı uyar
         if (days.length === 0) {
-            alert("Önce'Yeni Gün Ekle' butonuna basıp gün oluştur!");
+            alert("Önce 'Yeni Gün Ekle' butonuna basıp gün oluştur!");
             return;
         }
 
@@ -202,9 +211,6 @@ const ProgramManager = () => {
         setActiveDayId(parseInt(selectedDayId)); 
     };
 
-    // ==========================================
-    // TÜM PROGRAMI SQL'E ZIMBALAMA MOTORU
-    // ==========================================
     const saveFullWorkoutProgram = async () => {
         try {
             const payload = {
@@ -225,8 +231,8 @@ const ProgramManager = () => {
             await api.post(`/Admin/members/${id}/workout-program`, payload);
             alert("Antrenman Programı Kaydedildi!");
         } catch (err) {
-            console.error("C#'TAN GELEN ASIL HATA:", err.response?.data);
-            alert("Kayıt patladı! F12 Console'da 'C#'TAN GELEN ASIL HATA' kısmına bak.");
+            console.error("Hata:", err.response?.data || err);
+            alert("Antrenman programı kaydedilemedi!");
         }
     };
 
@@ -256,7 +262,7 @@ const ProgramManager = () => {
     };
 
     const deleteMeal = (id) => {
-        if (window.confirm("Bu öğünü listeden çıkarıyorz, emin misin?")) {
+        if (window.confirm("Bu öğünü listeden çıkarıyoruz, emin misin?")) {
             setMeals(meals.filter(m => m.id !== id));
         }
     };
@@ -269,7 +275,7 @@ const ProgramManager = () => {
                         <ArrowLeft size={18} /> Profile Dön
                     </button>
                     <h2 style={{ color: 'white', margin: 0 }}>
-                        <span style={{ color: 'var(--n1fit-red)' }}>{member?.fullName}</span> - Program Yönetimi
+                        <span style={{ color: 'var(--n1fit-red)' }}>{member?.fullName || `${member?.firstName || ''} ${member?.lastName || ''}`.trim()}</span> - Program Yönetimi
                     </h2>
                 </div>
 
@@ -349,12 +355,11 @@ const ProgramManager = () => {
                                 </div>
                             </div>
 
-                            {/* SAĞ TARAF: KÜTÜPHANE (ARTIK GERÇEK VERİLER) */}
+                            {/* SAĞ TARAF: KÜTÜPHANE */}
                             <div style={styles.rightPanel}>
                                 <h3 style={{ color: '#fff', marginBottom: '20px' }}>Hareket Kütüphanesi</h3>
                                 <div style={styles.muscleGroupList}>
                                     {MUSCLE_GROUPS.map(muscle => {
-                                        // Bu kas grubuna ait hareketleri SQL listesinden filtreliyoruz
                                         const exercisesInMuscle = dbExercises.filter(e => e.muscleGroup === muscle);
 
                                         return (
@@ -368,7 +373,7 @@ const ProgramManager = () => {
                                                     <div style={styles.exerciseDropdown}>
                                                         {exercisesInMuscle.length === 0 ? (
                                                             <div style={{color: '#666', fontSize: '0.85rem', padding: '10px', textAlign: 'center'}}>
-                                                                Bu bölgeye ait hareket yok emmoğlu.
+                                                                Bu bölgeye ait hareket yok.
                                                             </div>
                                                         ) : (
                                                             exercisesInMuscle.map(ex => (
@@ -387,7 +392,7 @@ const ProgramManager = () => {
                             </div>
                         </div>
                     ) : (
-                        /* BESLENME EKRANI (Aynı duruyor, fıstık gibi) */
+                        /* BESLENME EKRANI */
                         <div style={styles.dietContainer}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
                                 <div>
@@ -398,17 +403,17 @@ const ProgramManager = () => {
                                     <Plus size={16}/> Yeni Öğün Ekle
                                 </button>
                                 <button onClick={saveFullDietProgram} style={{ backgroundColor: '#4ade80', color: '#000', border: 'none', padding: '8px 15px', borderRadius: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 'bold' }}>
-                                TÜMÜNÜ KAYDET
+                                    TÜMÜNÜ KAYDET
                                 </button>
                             </div>
 
                             <div style={styles.mealList}>
                                 {meals.length === 0 ? (
                                     <div style={{ textAlign: 'center', padding: '40px', color: '#666', backgroundColor: '#151515', borderRadius: '10px' }}>
-                                        Adam açlıktan ölecek, bir şeyler ekleyin şuraya!
+                                        Henüz öğün eklenmedi.
                                     </div>
                                 ) : (
-                                    meals.sort((a, b) => a.time.localeCompare(b.time)).map(meal => (
+                                    [...meals].sort((a, b) => (a.time || '').localeCompare(b.time || '')).map(meal => (
                                         <div key={meal.id} style={styles.mealCardContainer}>
                                             <div style={styles.mealTimeBox}>
                                                 <Clock size={20} color="#d90429" />
@@ -442,7 +447,7 @@ const ProgramManager = () => {
                 <div style={styles.modalBackdrop}>
                     <div style={styles.modalContent}>
                         <h3 style={{ color: '#fff', marginTop: 0 }}>
-                            {editingExercise ? `${selectedExercise.name} - Rötuş Çek` : `${selectedExercise.name} Ayarları`}
+                            {editingExercise ? `${selectedExercise.name} - Düzenle` : `${selectedExercise.name} Ayarları`}
                         </h3>
                         
                         <form onSubmit={saveExerciseToDay} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -501,7 +506,7 @@ const ProgramManager = () => {
                             </div>
                             
                             <div>
-                                <label style={styles.label}>İçerik (Ne yiyecek bu adam?)</label>
+                                <label style={styles.label}>İçerik</label>
                                 <textarea 
                                     value={dietForm.content} 
                                     style={{...styles.input, height: '120px', resize: 'vertical'}} 

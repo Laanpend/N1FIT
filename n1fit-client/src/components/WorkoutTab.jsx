@@ -1,6 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/axiosConfig';
 
+const extractYoutubeId = (url) => {
+    if (!url) return null;
+    if (url.includes('v=')) {
+        return url.split('v=')[1]?.split('&')[0];
+    }
+    if (url.includes('youtu.be/')) {
+        return url.split('youtu.be/')[1]?.split('?')[0];
+    }
+    if (url.includes('youtube.com/shorts/')) {
+        return url.split('youtube.com/shorts/')[1]?.split('?')[0];
+    }
+    return null;
+};
+
 const WorkoutTab = () => {
     const [workoutProgram, setWorkoutProgram] = useState({ days: [] });
     const [expandedDay, setExpandedDay] = useState(null);
@@ -11,11 +25,10 @@ const WorkoutTab = () => {
         if (!token) return;
         const fetchData = async () => {
             try {
-                // ARTIK ADMİN KAPISINA GİTMİYORUZ, HER ŞEY BURADAN HAZIR GELİYOR AMQ!
                 const progRes = await api.get('/Member/my-workout');
                 setWorkoutProgram(progRes.data || { days: [] });
             } catch (err) {
-                console.error("Program çekilirken motor yaktı:", err);
+                console.error("Program çekilirken hata oluştu:", err);
             }
         };
         fetchData();
@@ -41,14 +54,13 @@ const WorkoutTab = () => {
                             style={{ padding: '15px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', backgroundColor: '#1a1a1a', borderLeft: '4px solid #d90429' }}
                         >
                             <h3 style={{ margin: 0, color: 'white' }}>{day.title}</h3>
-                            <span style={{ color: '#d90429', fontWeight: 'bold' }}>{expandedDay === dayIdx ? '▼ Kapat' : '▶ İncele'}</span>
+                            <span style={{ color: '#d90429', fontWeight: 'bold' }}>{expandedDay === dayIdx ? '▲ Kapat' : '▼ İncele'}</span>
                         </div>
 
                         {expandedDay === dayIdx && (
                             <div style={{ padding: '15px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '15px' }}>
                                 {day.exercises.map((ex, i) => {
-                                    // C#'TAN GELEN HAZIR İSİM VE VİDEOYU (ex.name, ex.videoUrl) KULLANIYORUZ!
-                                    const videoId = ex.videoUrl?.split('v=')?.[1]?.split('&')?.[0];
+                                    const videoId = extractYoutubeId(ex.videoUrl);
                                     const thumbUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : `https://placehold.co/300x200/111111/d90429.png?text=VIDEO+YOK`;
                                     const uniqueKey = `${dayIdx}-${i}`;
                                     const isCardio = ex.muscleGroup === "Kardiyo";
@@ -70,7 +82,6 @@ const WorkoutTab = () => {
                                             </div>
 
                                             <div style={{ padding: '12px' }}>
-                                                {/* İSİM DİREKT BURADAN EKRANA BASILIYOR */}
                                                 <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '8px', fontSize: '1.1rem' }}>
                                                     <span style={{ color: '#d90429', marginRight: '8px' }}>{i + 1}. Hareket:</span>
                                                     {ex.name || "Bilinmeyen Hareket"}
@@ -86,12 +97,8 @@ const WorkoutTab = () => {
                                                         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                                                             {ex.sets && <span>Set: <b style={{ color: '#4ade80' }}>{ex.sets}</b></span>}
                                                             {ex.reps && <span>Tekrar: <b style={{ color: '#4ade80' }}>{ex.reps}</b></span>}
-                                                            {ex.restTime && <span>Dinleme: <b style={{ color: '#4ade80' }}>{ex.restTime} sn</b></span>}
+                                                            {ex.restTime && <span>Dinlenme: <b style={{ color: '#4ade80' }}>{ex.restTime} sn</b></span>}
                                                         </div>
-                                                        // <>
-                                                        //     <span>Set: <b style={{ color: '#4ade80' }}>{ex.sets}</b></span>
-                                                        //     <span>Tekrar: <b style={{ color: '#4ade80' }}>{ex.reps}</b></span>
-                                                        // </>
                                                     )}
                                                 </div>
                                             </div>

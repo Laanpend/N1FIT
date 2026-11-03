@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-    PlayCircle, Calendar, Clock, AlertTriangle, Snowflake, 
-    LogOut, Dumbbell, Activity, MapPin, Phone, Target, 
-    ShieldCheck, CheckCircle, ChevronRight, ChevronLeft, Zap
+import {
+    AlertTriangle, Dumbbell, Activity, Target,
+    ShieldCheck, CheckCircle, ChevronRight, ChevronLeft, Zap,
+    Utensils, Ruler, CreditCard, LogIn, Lock, Mail, MessageCircle
 } from 'lucide-react';
 import api from '../api/axiosConfig';
 import Navbar from '../components/Navbar';
@@ -11,12 +11,11 @@ import WorkoutTab from '../components/WorkoutTab';
 import DietTab from '../components/DietTab';
 import MeasurementTab from '../components/MeasurementTab';
 import MembershipTab from '../components/MembershipTab';
-import MemberLoginModal from '../components/MemberLoginModal';
+import InteractiveBodyExerciseMap from '../components/InteractiveBodyExerciseMap';
 
-// --- VAPID BİLDİRİM MOTORU ---
 function urlB64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
     const rawData = window.atob(base64);
     const outputArray = new Uint8Array(rawData.length);
     for (let i = 0; i < rawData.length; ++i) {
@@ -25,55 +24,22 @@ function urlB64ToUint8Array(base64String) {
     return outputArray;
 }
 
-// ==========================================
-// V8 MOTORLU İPHONE ORANLI SLIDER (Sadece Salon Fotoları İçin)
-// ==========================================
-const AutoSlider = ({ images }) => {
-    const [currentIndex, setCurrentIndex] = useState(0);
-
-    useEffect(() => {
-        if (!images || images.length === 0) return;
-        const interval = setInterval(() => {
-            setCurrentIndex((prev) => (prev + 1) % images.length);
-        }, 4000);
-        return () => clearInterval(interval);
-    }, [images, currentIndex]);
-
-    const nextSlide = () => setCurrentIndex((prev) => (prev + 1) % images.length);
-    const prevSlide = () => setCurrentIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
-
-    if (!images || images.length === 0) return null;
-
-    return (
-        <div style={styles.sliderContainer}>
-            <button onClick={prevSlide} style={styles.sliderBtnLeft}><ChevronLeft size={30} color="white" /></button>
-            <div style={styles.sliderImageWrapper}>
-                {images.map((img, idx) => (
-                    <img key={idx} src={img} alt={`N1FIT Foto ${idx}`} style={{ ...styles.sliderImage, opacity: idx === currentIndex ? 1 : 0, transition: 'opacity 0.8s ease-in-out' }} />
-                ))}
-            </div>
-            <button onClick={nextSlide} style={styles.sliderBtnRight}><ChevronRight size={30} color="white" /></button>
-            <div style={styles.sliderDots}>
-                {images.map((_, idx) => (
-                    <div key={idx} onClick={() => setCurrentIndex(idx)} style={{ ...styles.dot, backgroundColor: idx === currentIndex ? '#d90429' : 'rgba(255,255,255,0.3)', cursor: 'pointer', transform: idx === currentIndex ? 'scale(1.2)' : 'scale(1)' }} />
-                ))}
-            </div>
-        </div>
-    );
-};
-
 const MemberDashboard = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('home');
     const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-    const [vitrinPaketleri, setVitrinPaketleri] = useState([]);
-    
+
+    // Zorunlu Üye Girişi Formu State'leri
+    const [loginEmail, setLoginEmail] = useState('');
+    const [loginPassword, setLoginPassword] = useState('');
+    const [loginError, setLoginError] = useState('');
+    const [loginSubmitting, setLoginSubmitting] = useState(false);
+
     const [isNotifyGranted, setIsNotifyGranted] = useState(
         'Notification' in window ? Notification.permission === 'granted' : false
     );
-    
+
     const PUBLIC_VAPID_KEY = "BGme68ndHvhXyZ8dtnIIcsE89ELVrcXIaiDNrA4zACgknZbOaCPL9ny1E6qlo7MoNr22EhFqv8NdFVMnw3V6hhY";
 
     const [profile, setProfile] = useState(null);
@@ -81,40 +47,39 @@ const MemberDashboard = () => {
     const [diets, setDiets] = useState([]);
     const [measurements, setMeasurements] = useState([]);
 
-    const gymImages = [
-        "/SalonunFotolari/Salon1.jpeg", "/SalonunFotolari/Salon2.jpeg", "/SalonunFotolari/Salon3.jpeg",
-        "/SalonunFotolari/Salon4.jpeg", "/SalonunFotolari/Salon5.jpeg", "/SalonunFotolari/Salon6.jpeg",
-        "/SalonunFotolari/Salon7.jpeg", "/SalonunFotolari/Salon8.jpeg", "/SalonunFotolari/Salon9.jpeg", "/SalonunFotolari/Salon10.jpeg"
-    ];
-
     const parseJwt = (token) => {
         try {
             const base64Url = token.split('.')[1];
             const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
             return JSON.parse(decodeURIComponent(window.atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')));
-        } catch (e) { return null; }
+        } catch { return null; }
     };
 
     useEffect(() => {
-        const fetchPublicPackages = async () => {
-            try {
-                const res = await api.get('/Member/packages');
-                setVitrinPaketleri(res.data);
-            } catch (err) {
-                console.error("Vitrin paketleri çekilirken motor yandı", err);
-            }
-        };
-        fetchPublicPackages();
-
-        // 2. Token ve Giriş Kontrolleri (Senin eski kodun aynısı)
         const token = localStorage.getItem('n1fit_token');
         if (token) {
             const payload = parseJwt(token);
-            const userRole = payload ? (payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role) : '';
-            if (userRole === 'Admin') { setIsLoggedIn(true); setLoading(false); return; }
+            if (!payload || (payload.exp && payload.exp * 1000 < Date.now())) {
+                localStorage.removeItem('n1fit_token');
+                setIsLoggedIn(false);
+                setLoading(false);
+                return;
+            }
+
+            const userRole = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role;
+            if (userRole === 'Admin' || userRole === '1') {
+                localStorage.removeItem('n1fit_token');
+                setIsLoggedIn(false);
+                setLoading(false);
+                return;
+            }
+
             setIsLoggedIn(true);
             fetchMyData();
-        } else { setLoading(false); }
+        } else {
+            setIsLoggedIn(false);
+            setLoading(false);
+        }
     }, []);
 
     const fetchMyData = async () => {
@@ -125,22 +90,67 @@ const MemberDashboard = () => {
             setDiets(res.data.diets || []);
             setWorkouts(res.data.workouts || []);
             setMeasurements(res.data.measurements || []);
-            setLoading(false);
         } catch (error) {
-            console.error("Profil çekilirken motor yandı:", error);
-            if (error.response?.status === 401) navigate('/login');
-            else {
-                // DİĞER BÜTÜN HATALARDA (PWA ağ hatası vs.) ADAMI İÇERİ ANA SAYFAYA AT Kİ EKRAN DONMASIN
-                setIsLoggedIn(false); 
-                localStorage.removeItem('n1fit_token'); // Bozuk tokenı sil
+            console.error("Profil çekilirken hata oluştu:", error);
+            if (error.response?.status === 401 || error.response?.status === 404) {
+                setIsLoggedIn(false);
+                localStorage.removeItem('n1fit_token');
+                setActiveTab('home');
             }
         } finally {
-            //ÇALIŞACAK BLOK! Hata olsa da olmasa da o loading ekranı kapanacak!
             setLoading(false);
         }
     };
 
-    const handleLogout = () => { localStorage.removeItem('n1fit_token'); window.location.href = '/'; };
+    const handleDirectLogin = async (e) => {
+        e.preventDefault();
+        setLoginError('');
+        setLoginSubmitting(true);
+        try {
+            const res = await api.post('/Auth/login', {
+                email: loginEmail.trim(),
+                password: loginPassword
+            });
+            const token = res.data.token || res.data.Token;
+
+            const payload = parseJwt(token);
+            if (payload) {
+                const userRole = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role;
+                if (userRole === 'Admin' || userRole === '1') {
+                    setLoginError('Yönetici hesapları üye portalından giriş yapamaz. Lütfen yönetici panelini kullanın.');
+                    setLoginSubmitting(false);
+                    return;
+                }
+            }
+
+            localStorage.setItem('n1fit_token', token);
+            setIsLoggedIn(true);
+            setActiveTab('home');
+            fetchMyData();
+        } catch (err) {
+            setLoginError(err.response?.data?.message || 'E-posta adresi veya şifre hatalı. Lütfen kontrol ediniz.');
+        } finally {
+            setLoginSubmitting(false);
+        }
+    };
+
+    const handleLogout = () => {
+        localStorage.removeItem('n1fit_token');
+        setIsLoggedIn(false);
+        setProfile(null);
+        setWorkouts([]);
+        setDiets([]);
+        setMeasurements([]);
+        setLoginEmail('');
+        setLoginPassword('');
+        setLoginError('');
+        setActiveTab('home');
+    };
+
+    const handleWhatsApp = () => {
+        const msg = "Merhaba,%20N1FIT%20Sporcu%20Portalı%20giriş%20ve%20üyelik%20hesabım%20hakkında%20bilgi%20almak%20istiyorum.";
+        window.open(`https://wa.me/905396078154?text=${msg}`, '_blank');
+    };
 
     const handleEnableNotifications = async () => {
         if ('serviceWorker' in navigator && 'PushManager' in window) {
@@ -148,177 +158,355 @@ const MemberDashboard = () => {
                 const swReg = await navigator.serviceWorker.ready;
                 const permission = await Notification.requestPermission();
                 if (permission === 'granted') {
-                    setIsNotifyGranted(true); 
-                    const subscription = await swReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8Array(PUBLIC_VAPID_KEY) });
+                    setIsNotifyGranted(true);
+                    const subscription = await swReg.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlB64ToUint8Array(PUBLIC_VAPID_KEY)
+                    });
                     const subJSON = subscription.toJSON();
-                    await api.post('/Member/save-subscription', { endpoint: subJSON.endpoint, p256dh: subJSON.keys.p256dh, auth: subJSON.keys.auth });
+                    await api.post('/Member/save-subscription', {
+                        endpoint: subJSON.endpoint,
+                        p256dh: subJSON.keys.p256dh,
+                        auth: subJSON.keys.auth
+                    });
                     alert("Bildirimler Aktif!");
-                } else { alert("Aktif Ederseniz Üyeliğiniz Bitmeden Haberdar Olursunuz!"); }
-            } catch (error) { console.error("Motor yandı:", error); }
-        } else { alert("Telefonun bu bildirimleri desteklemiyor!"); }
+                } else {
+                    alert("Aktif Ederseniz Üyeliğiniz Bitmeden Haberdar Olursunuz!");
+                }
+            } catch (error) {
+                console.error("Bildirim etkinleştirme hatası:", error);
+            }
+        } else {
+            alert("Telefonunuz bu bildirimleri desteklemiyor!");
+        }
     };
 
-    if (loading) return <div style={{ color: 'white', padding: '50px', textAlign: 'center' }}>Ağırlıklar Yükleniyor...</div>;
+    if (loading) {
+        return (
+            <div style={styles.loadingScreen}>
+                <div style={styles.loadingSpinner}></div>
+                <div style={{ color: '#fff', fontWeight: 'bold', fontSize: '1.2rem', marginTop: '16px', letterSpacing: '1px' }}>
+                    N1<span style={{ color: '#d90429' }}>FIT</span>
+                </div>
+                <div style={{ color: '#888', fontSize: '0.85rem', marginTop: '6px' }}>Sporcu Portalı Yükleniyor...</div>
+            </div>
+        );
+    }
 
+    // =========================================================================
+    // 1. ZORUNLU GİRİŞ EKRANI (GİRİŞ YAPILMADAN HİÇBİR ÖZELLİK VEYA NAVBAR GÖRÜNMEZ)
+    // =========================================================================
+    if (!isLoggedIn) {
+        return (
+            <div style={styles.loginContainer}>
+                <div style={styles.loginGlow}></div>
+                <div style={styles.loginCard}>
+                    <div style={styles.loginLogo}>
+                        N1<span style={{ color: '#d90429' }}>FIT</span>
+                    </div>
+                    <div style={styles.loginBadge}>SPORCU PORTALI</div>
+                    <h2 style={styles.loginTitle}>ÜYE GİRİŞİ</h2>
+                    <p style={styles.loginSubtitle}>
+                        Antrenman programınıza, beslenme listenize ve hareket kütüphanesine erişmek için giriş yapınız.
+                    </p>
+
+                    {loginError && (
+                        <div style={styles.loginErrorBox}>
+                            {loginError}
+                        </div>
+                    )}
+
+                    <form onSubmit={handleDirectLogin} style={styles.loginForm}>
+                        <div style={styles.inputWrapper}>
+                            <label style={styles.inputLabel}>E-Posta Adresi</label>
+                            <div style={styles.inputFieldContainer}>
+                                <Mail size={18} style={styles.inputIcon} />
+                                <input
+                                    type="email"
+                                    placeholder="ornek@n1fit.com"
+                                    value={loginEmail}
+                                    onChange={(e) => setLoginEmail(e.target.value)}
+                                    style={styles.loginInput}
+                                    autoComplete="email"
+                                    required
+                                    autoCapitalize="none"
+                                />
+                            </div>
+                        </div>
+
+                        <div style={styles.inputWrapper}>
+                            <label style={styles.inputLabel}>Şifre</label>
+                            <div style={styles.inputFieldContainer}>
+                                <Lock size={18} style={styles.inputIcon} />
+                                <input
+                                    type="password"
+                                    placeholder="••••••••"
+                                    value={loginPassword}
+                                    onChange={(e) => setLoginPassword(e.target.value)}
+                                    style={styles.loginInput}
+                                    autoComplete="current-password"
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={loginSubmitting}
+                            style={styles.loginSubmitBtn}
+                        >
+                            <LogIn size={18} />
+                            {loginSubmitting ? 'Giriş Yapılıyor...' : 'GİRİŞ YAP'}
+                        </button>
+                    </form>
+
+                    <hr style={styles.loginHelpDivider} />
+
+                    <div style={styles.loginHelpText}>
+                        Hesabınız henüz açılmadıysa veya şifrenizi unuttuysanız:
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={handleWhatsApp}
+                        style={styles.loginWhatsAppBtn}
+                    >
+                        <MessageCircle size={15} /> Salon Danışmasından Destek Al
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // =========================================================================
+    // 2. GİRİŞ YAPILMIŞ SPORCU DASHBOARDU (TÜM ÖZELLİKLER VE BOTTOM NAVBAR AKTİF)
+    // =========================================================================
     return (
         <div style={styles.container}>
             <div style={{ backgroundColor: '#050505', minHeight: '100vh', color: 'white' }}>
-                <Navbar activeTab={activeTab} setActiveTab={setActiveTab} isLoggedIn={isLoggedIn} onLogout={handleLogout} onOpenLogin={() => setIsLoginModalOpen(true)} />
+                <Navbar activeTab={activeTab} setActiveTab={setActiveTab} isLoggedIn={true} onLogout={handleLogout} />
 
-                <div style={{ padding: '0 20px', paddingBottom: '80px' }}>
-                    {isLoggedIn && !isNotifyGranted && (
-                        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px', marginBottom: '20px' }}>
-                            <button onClick={handleEnableNotifications} style={styles.notifyBtn}><AlertTriangle size={20} /> BİLDİRİMLERİ AÇ</button>
+                <div style={{ padding: '0 20px', paddingBottom: '90px' }}>
+                    {!isNotifyGranted && (
+                        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px', marginBottom: '16px' }}>
+                            <button onClick={handleEnableNotifications} style={styles.notifyBtn}>
+                                <AlertTriangle size={18} /> BİLDİRİMLERİ AÇ
+                            </button>
                         </div>
                     )}
 
                     {activeTab === 'home' && (
-                        <div style={styles.landingContainer}>
-                            <h1 style={styles.heroTitle}>N1<span style={{color: '#d90429'}}>FIT</span> SPOR MERKEZİ</h1>
-                            <p style={styles.heroSubtitle}>Bilimin, Disiplinin ve 15 Yıllık Tecrübenin Buluştuğu Yer</p>
-
-                            <AutoSlider images={gymImages} />
-
-                            <div style={styles.aboutSection}>
-                                <h2 style={styles.sectionTitle}>BİZ KİMİZ?</h2>
-                                <p style={styles.paragraph}>Sadece bir spor salonu değil; bilimin, doğru metodolojinin ve <strong>15 yıllık sektörel tecrübenin</strong> bir araya geldiği bir yaşam dönüşüm merkeziyiz.</p>
-                                <p style={styles.paragraph}>Fitness trendlerini değil, <strong>biyomekanik kuralları</strong> ve kanıtlanmış antrenman stratejilerini temel alıyoruz.</p>
-                                
-                                <div style={styles.missionGrid}>
-                                    <div style={styles.missionCard}><Target size={40} color="#d90429" /><h3>Misyonumuz</h3><p>Sporu geçici bir heves olmaktan çıkarıp, bilimin ışığında sürdürülebilir bir yaşam tarzı haline getirmek.</p></div>
-                                    <div style={styles.missionCard}><Activity size={40} color="#d90429" /><h3>Vizyonumuz</h3><p>Gelişmiş altyapımız ve akademik yaklaşımımızla bölgesel olarak standartları belirleyen lider marka olmak.</p></div>
-                                </div>
+                        <div>
+                            {/* Giriş Yapmış Sporcu Üst Karşılama */}
+                            <div style={{ maxWidth: '1000px', margin: '15px auto 20px auto', textAlign: 'center' }}>
+                                <h2 style={{ fontSize: '1.8rem', fontWeight: '900', color: '#fff', marginBottom: '6px' }}>
+                                    HOŞ GELDİN {profile?.fullName ? profile.fullName.toUpperCase() : 'SPORCU'}! 💪
+                                </h2>
+                                <p style={{ color: '#888', margin: '0 0 10px 0', fontSize: '0.9rem' }}>
+                                    Bugün hangi kas grubunu çalıştırıyorsun? Aşağıdan doğrudan hedefini seç!
+                                </p>
                             </div>
 
-                            <div style={styles.whyUsContainer}>
-                                <h3 style={styles.whyUsTitle}>NEDEN BİZ?</h3>
-                                <div style={styles.whyUsGrid}>
-                                    <div style={styles.whyUsItem}><CheckCircle color="#d90429" /> 15+ Yıllık Sektörel Tecrübe</div>
-                                    <div style={styles.whyUsItem}><CheckCircle color="#d90429" /> Biyomekanik ve Form Odaklı Yaklaşım</div>
-                                    <div style={styles.whyUsItem}><CheckCircle color="#d90429" /> Federasyon Onaylı Profesyonel Kadro</div>
-                                    <div style={styles.whyUsItem}><CheckCircle color="#d90429" /> %100 Kişiye Özel Gelişim Takibi</div>
-                                </div>
-                            </div>
-
-                            <h2 style={styles.sectionTitle}>HİZMETLERİMİZ</h2>
-                            <div style={styles.servicesGrid}>
-                                <div style={styles.serviceCard}><Dumbbell size={40} color="#d90429" style={{marginBottom:'15px'}} /><h4>Fitness & Bodybuilding</h4><p>Sadece ağırlık kaldırmayın, vücudunuzu yönetin. En güvenli yoldan hedefe ulaşın.</p></div>
-                                <div style={styles.serviceCard}><Zap size={40} color="#d90429" style={{marginBottom:'15px'}} /><h4>Pilates Studio</h4><p>Postür bozukluklarını gidermek ve core bölgenizi güçlendirmek için modern pilates.</p></div>
-                                <div style={styles.serviceCard}><ShieldCheck size={40} color="#d90429" style={{marginBottom:'15px'}} /><h4>Kişiye Özel Beslenme</h4><p>Sürdürülemez diyetleri çöpe atın. Size özel optimize edilmiş beslenme planı.</p></div>
-                            </div>
-
-                            <h2 style={styles.sectionTitle} style={{marginTop: '60px', marginBottom: '20px'}}>PAKETLERİMİZ</h2>
-                            
-                            {/* ZİGZAG KART YAPISI! */}
-                            <div style={styles.packageGrid}>
-                                {vitrinPaketleri.map((pkg, idx) => (
-                                    <div key={pkg.id} style={{
-                                        ...styles.packageCard
-                                    }}>
-                                        <h3 style={styles.pkgType}>{pkg.name}</h3>
-                                        <h4 style={styles.pkgDuration}>{pkg.durationMonths} AY</h4>
-                                        <div style={styles.pkgPrice}>{pkg.price} ₺</div>
-                                        <hr style={styles.pkgDivider}/>
-                                        <ul style={styles.pkgFeatures}>
-                                            <li>✓ Sınırsız Alet Kullanımı</li>
-                                            <li>✓ Soyunma Odası & Duş</li>
-                                            <li>✓ Profesyonel Destek</li>
-                                        </ul>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div style={styles.ctaContainer}>
-                                <a href="tel:5396078154" style={{ textDecoration: 'none' }}><button style={styles.ctaBtnPrimary}>Ücretsiz Tanışma Seansı Randevusu Al <ChevronRight /></button></a>
-                                {/* <button disabled style={{ ...styles.ctaBtnSecondary, opacity: 0.4, cursor: 'not-allowed', borderColor: '#444', color: '#666' }}>Hemen Kaydol, Değişimi Başlat (Çok Yakında) <Zap /></button> */}
-                            </div>
-
-                            <footer style={styles.footer}>
-                                <div style={styles.footerLogo}>N1<span style={{color:'#d90429'}}>FIT</span></div>
-                                <p style={styles.footerText}>Bahanelere yer yok, sadece sonuç var!</p>
-                                
-                                <div style={styles.contactInfo}>
-                                    <div style={styles.contactItem}><Phone size={20} color="#d90429"/> <span>539 607 81 54 &nbsp; | &nbsp; 535 049 54 81</span></div>
-                                    <div style={styles.contactItem}><MapPin size={20} color="#d90429"/> <span>Kültür Mahallesi, Yavuz Selim Sokak No:8 <br/> Gölyaka / Düzce</span></div>
-                                    
-                                    <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                                        {/* INSTAGRAM */}
-                                        <a href="https://www.instagram.com/n1fitspormerkezi/" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-                                            <div style={{...styles.contactItem, cursor: 'pointer', transition: '0.3s', border: '1px solid #d90429'}}>
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d90429" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
-                                                <span style={{ color: '#fff', fontWeight: 'bold', letterSpacing: '1px' }}>@n1fitspormerkezi</span>
-                                            </div>
-                                        </a>
-
-                                        {/* YOUTUBE SVG MERMİSİ */}
-                                        <a href="https://www.youtube.com/@N1F%C4%B0TSPORMERKEZ%C4%B0" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-                                            <div style={{...styles.contactItem, cursor: 'pointer', transition: '0.3s', border: '1px solid #d90429'}}>
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d90429" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33 2.78 2.78 0 0 0 1.94 2c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.33 29 29 0 0 0-.46-5.33z"></path><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon></svg>
-                                                <span style={{ color: '#fff', fontWeight: 'bold', letterSpacing: '1px' }}>@N1FİTSPORMERKEZİ</span>
-                                            </div>
-                                        </a>
-                                    </div>
-                                </div>
-                                <div style={styles.copyright}>© 2026 N1FIT Spor Merkezi. Tüm Hakları Saklıdır.</div>
-                            </footer>
+                            {/* İNTERAKTİF ANATOMİ VÜCUT VE HAREKET KÜTÜPHANESİ ENTEGRASYONU */}
+                            <InteractiveBodyExerciseMap />
                         </div>
                     )}
-                    {isLoggedIn && activeTab === 'membership' && <MembershipTab />}
-                    {isLoggedIn && activeTab === 'workout' && <WorkoutTab />}
-                    {isLoggedIn && activeTab === 'diet' && <DietTab />}
-                    {isLoggedIn && activeTab === 'measure' && <MeasurementTab />}
-                </div>
 
-                <MemberLoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} onLoginSuccess={() => { setIsLoggedIn(true); window.location.reload(); }} />
+                    {activeTab === 'membership' && <MembershipTab />}
+                    {activeTab === 'workout' && <WorkoutTab />}
+                    {activeTab === 'diet' && <DietTab />}
+                    {activeTab === 'measure' && <MeasurementTab />}
+                </div>
             </div>
         </div>
     );
 };
 
-// TASARIMIN JİLET KISMI
 const styles = {
     container: { minHeight: '100vh', backgroundColor: '#0a0a0a', color: 'white' },
-    notifyBtn: { backgroundColor: '#d90429', color: 'white', padding: '12px 24px', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(217,4,41,0.4)' },
-    landingContainer: { textAlign: 'center', marginTop: '40px', maxWidth: '1000px', margin: '40px auto 0 auto' },
-    heroTitle: { fontSize: '3.5rem', fontWeight: '900', color: '#fff', textTransform: 'uppercase', marginBottom: '10px' },
-    heroSubtitle: { fontSize: '1.2rem', color: '#aaa', marginBottom: '40px', fontWeight: '600' },
-    sliderContainer: { position: 'relative', width: '100%', maxWidth: '450px', aspectRatio: '3/4', margin: '0 auto 50px auto', borderRadius: '15px', overflow: 'hidden', boxShadow: '0 0 40px rgba(217, 4, 41, 0.25)', backgroundColor: '#050505' },
-    sliderImageWrapper: { width: '100%', height: '100%', position: 'relative' },
-    sliderImage: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
-    sliderBtnLeft: { position: 'absolute', top: '50%', left: '10px', transform: 'translateY(-50%)', backgroundColor: 'rgba(0, 0, 0, 0.6)', border: 'none', borderRadius: '50%', width: '45px', height: '45px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10, transition: '0.3s' },
-    sliderBtnRight: { position: 'absolute', top: '50%', right: '10px', transform: 'translateY(-50%)', backgroundColor: 'rgba(0, 0, 0, 0.6)', border: 'none', borderRadius: '50%', width: '45px', height: '45px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10, transition: '0.3s' },
-    sliderDots: { position: 'absolute', bottom: '15px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '10px', zIndex: 10 },
-    dot: { width: '10px', height: '10px', borderRadius: '50%', transition: 'all 0.3s' },
-    
-    // ZİGZAG PAKET KARTLARI CSS
-    packageGrid: { display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '30px', padding: '20px 0 60px 0' },
-    packageCard: { backgroundColor: '#111', border: '1px solid #222', borderRadius: '15px', width: '260px', padding: '30px 20px', textAlign: 'center', transition: 'transform 0.3s', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' },
-    pkgType: { color: '#d90429', fontSize: '1.4rem', fontWeight: '900', margin: 0, textTransform: 'uppercase' },
-    pkgDuration: { color: '#fff', fontSize: '1.1rem', marginTop: '5px', fontWeight: 'bold' },
-    pkgPrice: { fontSize: '2.2rem', fontWeight: '900', margin: '20px 0', color: '#fff' },
-    pkgDivider: { borderColor: '#333', marginBottom: '20px' },
-    pkgFeatures: { listStyle: 'none', padding: 0, color: '#aaa', fontSize: '0.95rem', lineHeight: '2' },
+    notifyBtn: { backgroundColor: '#d90429', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(217,4,41,0.4)', fontSize: '0.88rem' },
 
-    aboutSection: { backgroundColor: '#111', padding: '40px', borderRadius: '15px', border: '1px solid #222', marginBottom: '40px', textAlign: 'left' },
-    sectionTitle: { fontSize: '2.2rem', fontWeight: '900', color: '#fff', marginBottom: '25px', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '1px' },
-    paragraph: { fontSize: '1.1rem', color: '#bbb', lineHeight: '1.8', marginBottom: '20px' },
-    missionGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginTop: '40px' },
-    missionCard: { backgroundColor: '#0a0a0a', padding: '25px', borderRadius: '10px', borderLeft: '4px solid #d90429' },
-    whyUsContainer: { margin: '50px 0', padding: '30px', backgroundColor: 'rgba(217, 4, 41, 0.05)', borderRadius: '15px', border: '1px solid rgba(217, 4, 41, 0.2)' },
-    whyUsTitle: { fontSize: '1.5rem', fontWeight: 'bold', color: '#d90429', marginBottom: '20px' },
-    whyUsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px', textAlign: 'left' },
-    whyUsItem: { display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.1rem', fontWeight: '600', color: '#fff' },
-    servicesGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '25px', marginBottom: '50px' },
-    serviceCard: { backgroundColor: '#111', padding: '30px', borderRadius: '15px', border: '1px solid #222', transition: 'transform 0.3s, boxShadow 0.3s', textAlign: 'left' },
-    ctaContainer: { display: 'flex', flexDirection: 'column', gap: '15px', alignItems: 'center', marginTop: '40px', marginBottom: '60px' },
-    ctaBtnPrimary: { backgroundColor: '#d90429', color: 'white', padding: '18px 40px', fontSize: '1.2rem', fontWeight: 'bold', border: 'none', borderRadius: '50px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 10px 30px rgba(217, 4, 41, 0.4)', transition: '0.3s' },
-    ctaBtnSecondary: { backgroundColor: 'transparent', color: '#fff', padding: '15px 35px', fontSize: '1.1rem', fontWeight: 'bold', border: '2px solid #d90429', borderRadius: '50px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', transition: '0.3s' },
-    footer: { backgroundColor: '#050505', borderTop: '2px solid #222', padding: '50px 20px', textAlign: 'center', marginTop: '40px' },
-    footerLogo: { fontSize: '2.5rem', fontWeight: '900', letterSpacing: '2px', marginBottom: '10px' },
-    footerText: { color: '#666', fontSize: '1rem', fontStyle: 'italic', marginBottom: '30px' },
-    contactInfo: { display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center', marginBottom: '40px' },
-    contactItem: { display: 'flex', alignItems: 'center', gap: '15px', color: '#ccc', fontSize: '1.1rem', backgroundColor: '#111', padding: '15px 30px', borderRadius: '50px', border: '1px solid #333' },
-    copyright: { color: '#444', fontSize: '0.9rem', marginTop: '20px' }
+    // Yükleme Ekranı
+    loadingScreen: {
+        minHeight: '100vh',
+        backgroundColor: '#07080a',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+    loadingSpinner: {
+        width: '42px',
+        height: '42px',
+        border: '3px solid rgba(217, 4, 41, 0.2)',
+        borderTop: '3px solid #d90429',
+        borderRadius: '50%',
+        animation: 'spin 0.8s linear infinite'
+    },
+
+    // Zorunlu Giriş Ekranı
+    loginContainer: {
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#07080a',
+        padding: '24px 16px',
+        boxSizing: 'border-box',
+        position: 'relative',
+        overflow: 'hidden'
+    },
+    loginGlow: {
+        position: 'absolute',
+        width: '320px',
+        height: '320px',
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(217, 4, 41, 0.25) 0%, rgba(0, 0, 0, 0) 70%)',
+        top: '15%',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        pointerEvents: 'none',
+        zIndex: 0
+    },
+    loginCard: {
+        position: 'relative',
+        zIndex: 1,
+        width: '100%',
+        maxWidth: '400px',
+        backgroundColor: 'rgba(16, 18, 23, 0.95)',
+        border: '1px solid #232732',
+        borderRadius: '20px',
+        padding: '36px 26px',
+        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8), 0 0 40px rgba(217, 4, 41, 0.1)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        textAlign: 'center',
+        boxSizing: 'border-box'
+    },
+    loginLogo: {
+        fontSize: '2.4rem',
+        fontWeight: '900',
+        letterSpacing: '2px',
+        color: '#fff',
+        marginBottom: '6px'
+    },
+    loginBadge: {
+        display: 'inline-block',
+        backgroundColor: 'rgba(217, 4, 41, 0.12)',
+        color: '#ff4d6d',
+        border: '1px solid rgba(217, 4, 41, 0.3)',
+        borderRadius: '20px',
+        padding: '4px 14px',
+        fontSize: '0.74rem',
+        fontWeight: 'bold',
+        letterSpacing: '1.5px',
+        textTransform: 'uppercase',
+        marginBottom: '16px'
+    },
+    loginTitle: {
+        fontSize: '1.45rem',
+        fontWeight: '900',
+        color: '#fff',
+        margin: '0 0 8px 0',
+        letterSpacing: '0.5px'
+    },
+    loginSubtitle: {
+        fontSize: '0.88rem',
+        color: '#999',
+        lineHeight: '1.6',
+        margin: '0 auto 22px auto',
+        maxWidth: '320px'
+    },
+    loginErrorBox: {
+        backgroundColor: 'rgba(217, 4, 41, 0.15)',
+        color: '#ff4d6d',
+        border: '1px solid #d90429',
+        padding: '10px 14px',
+        borderRadius: '10px',
+        fontSize: '0.85rem',
+        fontWeight: '600',
+        marginBottom: '18px',
+        textAlign: 'left'
+    },
+    loginForm: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '16px',
+        textAlign: 'left'
+    },
+    inputWrapper: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '6px'
+    },
+    inputLabel: {
+        fontSize: '0.8rem',
+        color: '#bbb',
+        fontWeight: '600'
+    },
+    inputFieldContainer: {
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center'
+    },
+    inputIcon: {
+        position: 'absolute',
+        left: '14px',
+        color: '#666',
+        pointerEvents: 'none'
+    },
+    loginInput: {
+        width: '100%',
+        backgroundColor: '#0d0f13',
+        border: '1px solid #282c37',
+        borderRadius: '10px',
+        padding: '13px 14px 13px 44px',
+        color: '#fff',
+        fontSize: '0.95rem',
+        outline: 'none',
+        boxSizing: 'border-box'
+    },
+    loginSubmitBtn: {
+        backgroundColor: '#d90429',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '10px',
+        padding: '14px',
+        fontSize: '1rem',
+        fontWeight: 'bold',
+        cursor: 'pointer',
+        marginTop: '6px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px',
+        boxShadow: '0 6px 20px rgba(217, 4, 41, 0.4)'
+    },
+    loginHelpDivider: {
+        borderColor: '#1f232b',
+        margin: '24px 0 16px 0'
+    },
+    loginHelpText: {
+        fontSize: '0.8rem',
+        color: '#777',
+        marginBottom: '10px'
+    },
+    loginWhatsAppBtn: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '6px',
+        backgroundColor: 'rgba(37, 211, 102, 0.1)',
+        color: '#25D366',
+        border: '1px solid rgba(37, 211, 102, 0.3)',
+        borderRadius: '8px',
+        padding: '9px 16px',
+        fontSize: '0.82rem',
+        fontWeight: '600',
+        cursor: 'pointer',
+        width: '100%',
+        boxSizing: 'border-box'
+    }
 };
 
 export default MemberDashboard;

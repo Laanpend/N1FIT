@@ -1,23 +1,35 @@
 import axios from 'axios';
 
 const api = axios.create({
-    // Buradaki port numarası senin Swagger'ın çalıştığı portla aynı olmalı (7011, 5001 vb.)
-    baseURL: 'https://api.n1fit.com.tr/api',
+    baseURL: import.meta.env.VITE_API_URL || 'https://api.n1fit.com.tr/api',
     headers: {
-        // NGROK'UN UYARI SAYFASINI TEK ATARAK GEÇEN ZIRH DELİCİ MERMİ!
         'ngrok-skip-browser-warning': 'true'
     }
 });
 
-// Her istekte "Acaba token var mı?" diye kontrol edip varsa kafasına yapıştırıyoruz
-api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('n1fit_token');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-},
+api.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem('n1fit_token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
     (error) => Promise.reject(error)
+);
+
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        const isLoginRequest = error.config?.url?.toLowerCase().includes('/auth/login');
+        if (error.response?.status === 401 && !isLoginRequest) {
+            localStorage.removeItem('n1fit_token');
+            if (window.location.pathname.startsWith('/admin') && window.location.pathname !== '/admin/login') {
+                window.location.href = '/admin/login';
+            }
+        }
+        return Promise.reject(error);
+    }
 );
 
 export default api;

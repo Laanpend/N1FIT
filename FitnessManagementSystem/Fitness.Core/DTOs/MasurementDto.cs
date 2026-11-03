@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System;
 
 namespace Fitness.Core.DTOs
 {
@@ -16,6 +12,12 @@ namespace Fitness.Core.DTOs
         public double RightArm { get; set; }
         public double Waist { get; set; }
         public double Neck { get; set; }
+
+        // İsteğe bağlı (zorunlu olmayan) ölçüler
+        public double? Hips { get; set; }
+        public double? RightLeg { get; set; }
+        public double? LeftLeg { get; set; }
+
         public DateTime RecordDate { get; set; }
     }
 }

@@ -1,4 +1,4 @@
-﻿using Fitness.Core.DTOs;
+using Fitness.Core.DTOs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,5 +14,9 @@ namespace Fitness.Core.Interfaces
         Task<object> GetMyDietAsync(int userId);
         Task<IEnumerable<object>> GetMyMeasurementsAsync(int userId);
         Task SavePushSubscriptionAsync(int userId, string endpoint, string p256dh, string auth);
+        Task<BodyProfileDto> GetBodyProfileAsync(int userId);
+        Task<BodyCompositionResultDto> CalculateBodyCompositionAsync(int userId, BodyCompositionRequestDto dto);
+        Task SyncDailyTrackingAsync(int userId, SyncDailyTrackingDto dto);
+        Task<DailyTrackingResponseDto?> GetDailyTrackingAsync(int userId, string date);
     }
 }

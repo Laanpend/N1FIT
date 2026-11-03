@@ -1,5 +1,5 @@
 {
-  "name": "n1fit-client",
+  "name": "n1fit-spor-merkezi",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -12,6 +12,7 @@
   "dependencies": {
     "axios": "^1.16.0",
     "bootstrap": "^5.3.8",
+    "health-fitness-formulas": "^1.0.0",
     "lucide-react": "^1.14.0",
     "react": "^19.2.5",
     "react-bootstrap": "^2.10.10",

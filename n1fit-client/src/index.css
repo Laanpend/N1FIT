@@ -35,6 +35,11 @@ body {
   transform: scale(1.05);
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* =========================================
    🖥️ BİLGİSAYAR / DESKTOP NAVBAR TASARIMI
 ========================================= */
@@ -163,8 +168,8 @@ body {
     transform: translateX(-50%) scale(1.05); /* Tıklayınca hafif şişer */
   }
 
-  /* İçerik menünün altında ezilmesin diye sayfaya alttan boşluk ver */
-  body {
+  /* İçerik menünün altında ezilmesin diye sadece alt menü sayfada varken alttan boşluk ver */
+  body:has(.jilet-navbar) {
     padding-bottom: 90px !important; 
   }
 }

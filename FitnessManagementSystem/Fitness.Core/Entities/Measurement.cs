@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System;
 
 namespace Fitness.Core.Entities
 {
@@ -10,15 +6,20 @@ namespace Fitness.Core.Entities
     {
         public int Id { get; set; }
         public int UserId { get; set; }
-        public User User { get; set; }
+        public User? User { get; set; }
 
         public double Weight { get; set; }
         public double Shoulder { get; set; }
-        public double Chest { get; set; } // YENİ: Göğüs
-        public double LeftArm { get; set; } // YENİ: Sol Kol
-        public double RightArm { get; set; } // YENİ: Sağ Kol
+        public double Chest { get; set; }
+        public double LeftArm { get; set; }
+        public double RightArm { get; set; }
         public double Waist { get; set; }
-        public double Neck { get; set; } // YENİ: Boyun
+        public double Neck { get; set; }
+
+        // İsteğe bağlı (zorunlu olmayan) ölçüler
+        public double? Hips { get; set; }
+        public double? RightLeg { get; set; }
+        public double? LeftLeg { get; set; }
 
         public DateTime RecordDate { get; set; } = DateTime.Now;
     }

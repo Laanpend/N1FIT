@@ -1,8 +1,5 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Fitness.Core.Entities
 {
@@ -10,12 +7,11 @@ namespace Fitness.Core.Entities
     {
         public int Id { get; set; }
         public int UserId { get; set; }
-        public User User { get; set; }
-        public string Name { get; set; } // Örn: "Nisan Ayı Hacim Programı"
+        public User? User { get; set; }
+        public string Name { get; set; } = string.Empty;
         public DateTime StartDate { get; set; } = DateTime.Now;
         public bool IsActive { get; set; } = true;
 
-        // Bir programın birden fazla günü olur
-        public ICollection<WorkoutDay> Days { get; set; }
+        public ICollection<WorkoutDay> Days { get; set; } = new List<WorkoutDay>();
     }
 }

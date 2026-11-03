@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /member/
+
+Sitemap: https://n1fit.com.tr/sitemap.xml

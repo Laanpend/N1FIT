@@ -1,0 +1,11 @@
+# Build & Publish
+**/bin/
+**/obj/
+**/dist/
+**/node_modules/
+publish/
+publish_backend/
+n1fit-client/scratch/
+.vs/
+*.user
+*.suo

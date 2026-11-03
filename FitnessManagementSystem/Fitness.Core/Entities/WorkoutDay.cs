@@ -1,8 +1,4 @@
-﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Fitness.Core.Entities
 {
@@ -10,12 +6,11 @@ namespace Fitness.Core.Entities
     {
         public int Id { get; set; }
         public int WorkoutProgramId { get; set; }
-        public WorkoutProgram WorkoutProgram { get; set; }
+        public WorkoutProgram WorkoutProgram { get; set; } = null!;
 
-        public string DayName { get; set; } // Örn: "1. Gün" veya "Pazartesi"
-        public string Title { get; set; } // Örn: "Hipertrofi + Güç" veya "Göğüs & Ön Kol"
+        public string DayName { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
 
-        // Bir günün içinde birden fazla hareket olur
-        public ICollection<WorkoutDayExercise> Exercises { get; set; }
+        public ICollection<WorkoutDayExercise> Exercises { get; set; } = new List<WorkoutDayExercise>();
     }
 }

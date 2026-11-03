@@ -5,76 +5,96 @@ import MemberDetail from './pages/MemberDetail';
 import ProgramManager from './pages/ProgramManager';
 import ExerciseLibrary from './pages/ExerciseLibrary';
 import PackageLibrary from './pages/PackageLibrary';
-import MemberDashboard from './pages/MemberDashboard'; // Uzantıya .jsx yazmana gerek yok dayı
+import FacilityManager from './pages/FacilityManager';
+import SiteStudio from './pages/SiteStudio';
+import FinanceManager from './pages/FinanceManager';
+import MemberDashboard from './pages/MemberDashboard';
+import Home from './pages/Home';
+import { isStandalonePWA } from './utils/pwaHelper';
 import './index.css';
 
-// =======================================================
-// 🛡️ ADMİN BODYGUARD MOTORU (Geçiş Kontrolü)
-// =======================================================
-// Bu motor sadece token'ı olan ve rolü 'Admin' olan aslanları içeri alır.
-// =======================================================
-// 🛡️ ADMİN BODYGUARD MOTORU (Geçiş Kontrolü)
-// =======================================================
+const parseJwt = (t) => {
+    try {
+        const base64Url = t.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+            window.atob(base64).split('').map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
+        );
+        return JSON.parse(jsonPayload);
+    } catch {
+        return null;
+    }
+};
+
 const AdminRoute = ({ children }) => {
     const token = localStorage.getItem('n1fit_token');
-    
+
     if (!token) return <Navigate to="/admin/login" />;
 
-    // TÜRKÇE KARAKTER PATLAMASINI ÖNLEYEN JİLET MOTOR!
-    const parseJwt = (t) => {
-        try {
-            const base64Url = t.split('.')[1];
-            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-            const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
-                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-            }).join(''));
-            return JSON.parse(jsonPayload);
-        } catch (e) {
-            return null;
-        }
-    };
-    
     try {
         const payload = parseJwt(token);
-        if (!payload) return <Navigate to="/admin/login" />;
+        if (!payload) {
+            localStorage.removeItem('n1fit_token');
+            return <Navigate to="/admin/login" />;
+        }
+
+        if (payload.exp && payload.exp * 1000 < Date.now()) {
+            localStorage.removeItem('n1fit_token');
+            return <Navigate to="/admin/login" />;
+        }
 
         const userRole = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role;
-        
-        if (userRole !== 'Admin') return <Navigate to="/" />; 
-        
+
+        if (userRole !== 'Admin' && userRole !== '1') return <Navigate to="/" />;
+
         return children;
-    } catch (error) {
+    } catch {
         return <Navigate to="/admin/login" />;
     }
+};
+
+// Standalone PWA uygulaması mı yoksa Web Sitesi mi kontrolü
+const RootRoute = () => {
+    const isPwa = isStandalonePWA();
+    return isPwa ? <MemberDashboard /> : <Home />;
+};
+
+// Sadece yüklü PWA uygulamasından erişime izin veren koruyucu (Web tarayıcılarından doğrudan erişilemez)
+const PwaOnlyRoute = ({ children }) => {
+    if (!isStandalonePWA()) {
+        return <Navigate to="/" replace />;
+    }
+    return children;
 };
 
 function App() {
   return (
     <Router>
       <Routes>
-        {/* =======================================================
-            🟢 MÜŞTERİ VİTRİNİ VE GİRİŞ (HERKESE AÇIK KAPILAR)
-        ======================================================= */}
-        <Route path="/" element={<MemberDashboard />} />
+        {/* Ana sayfa: Cihaza yüklü PWA ise doğrudan MemberDashboard, tarayıcıda ise kurumsal Home */}
+        <Route path="/" element={<RootRoute />} />
+        <Route path="/home" element={<Home />} />
         
-        {/* Adminin gizli giriş kapısı */}
+        {/* Üye Paneli / PWA rotaları - Web tarayıcılarından erişilemez, otomatik olarak Home'a yönlendirir */}
+        <Route path="/app" element={<PwaOnlyRoute><MemberDashboard /></PwaOnlyRoute>} />
+        <Route path="/member" element={<PwaOnlyRoute><MemberDashboard /></PwaOnlyRoute>} />
+        <Route path="/member/dashboard" element={<PwaOnlyRoute><MemberDashboard /></PwaOnlyRoute>} />
+
+        {/* Admin rotaları */}
         <Route path="/admin/login" element={<Login />} />
+        <Route path="/login" element={<Navigate to="/admin/login" />} />
 
-
-        {/* =======================================================
-            🔴 ADMİN GİZLİ MEKANI (SADECE BODYGUARD'DAN GEÇENLER)
-        ======================================================= */}
         <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
         <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
         <Route path="/admin/member/:id" element={<AdminRoute><MemberDetail /></AdminRoute>} />
         <Route path="/admin/member/:id/program" element={<AdminRoute><ProgramManager /></AdminRoute>} />
         <Route path="/admin/exercises" element={<AdminRoute><ExerciseLibrary /></AdminRoute>} />
         <Route path="/admin/packages" element={<AdminRoute><PackageLibrary /></AdminRoute>} />
+        <Route path="/admin/facilities" element={<AdminRoute><SiteStudio /></AdminRoute>} />
+        <Route path="/admin/studio" element={<AdminRoute><SiteStudio /></AdminRoute>} />
+        <Route path="/admin/site-studio" element={<AdminRoute><SiteStudio /></AdminRoute>} />
+        <Route path="/admin/finance" element={<AdminRoute><FinanceManager /></AdminRoute>} />
 
-
-        {/* =======================================================
-            🗑️ 404 - YANLIŞ ADRESE GİRENİ VİTRİNE FIRLAT
-        ======================================================= */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>

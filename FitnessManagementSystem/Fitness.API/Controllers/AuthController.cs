@@ -1,11 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
 using Fitness.Core.DTOs;
 using Fitness.Core.Interfaces;
+using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Threading.Tasks;
 
 namespace Fitness.API.Controllers
 {
-
-
     [Route("api/[controller]")]
     [ApiController]
     public class AuthController : ControllerBase
@@ -18,17 +18,39 @@ namespace Fitness.API.Controllers
         }
 
         [HttpPost("register")]
-        public async Task<IActionResult> Register(UserCreateDto userCreateDto)
+        public async Task<IActionResult> Register([FromBody] UserCreateDto userCreateDto)
         {
-            await _authService.RegisterAsync(userCreateDto);
-            return Ok("Kayıt başarılı, N1FIT'e hoş geldiniz!");
+            try
+            {
+                await _authService.RegisterAsync(userCreateDto);
+                return Ok(new { message = "Kayıt başarılı, N1FIT'e hoş geldiniz!" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
         {
-            var token = await _authService.LoginAsync(loginDto.Email, loginDto.Password);
-            return Ok(new { Token = token });
+            try
+            {
+                var token = await _authService.LoginAsync(loginDto.Email, loginDto.Password);
+                return Ok(new { token });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
     }
 }

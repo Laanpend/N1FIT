@@ -1,17 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Fitness.Core.Interfaces;
 using Fitness.Data.Context;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Linq;
 using System.Linq.Expressions;
+using System.Threading.Tasks;
 
 namespace Fitness.Data.Repositories
 {
-    
-
     public class GenericRepository<T> : IGenericRepository<T> where T : class
     {
         protected readonly FitnessDbContext _context;
@@ -25,9 +21,9 @@ namespace Fitness.Data.Repositories
 
         public async Task AddAsync(T entity) => await _dbSet.AddAsync(entity);
 
-        public IQueryable<T> GetAll() => _dbSet.AsNoTracking(); // Performans için NoTracking
+        public IQueryable<T> GetAll() => _dbSet.AsNoTracking();
 
-        public async Task<T> GetByIdAsync(int id) => await _dbSet.FindAsync(id);
+        public async Task<T> GetByIdAsync(int id) => (await _dbSet.FindAsync(id))!;
 
         public void Remove(T entity) => _dbSet.Remove(entity);
 

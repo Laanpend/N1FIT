@@ -1,6 +1,19 @@
 import React, { useState } from 'react';
 import api from '../api/axiosConfig';
 
+const parseJwt = (token) => {
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+            window.atob(base64).split('').map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
+        );
+        return JSON.parse(jsonPayload);
+    } catch {
+        return null;
+    }
+};
+
 const MemberLoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -10,18 +23,26 @@ const MemberLoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
 
     const handleLogin = async (e) => {
         e.preventDefault();
+        setError('');
         try {
-            // C#'taki aynı API'ye mermiyi sıkıyoruz
-            const res = await api.post('/Auth/login', { email, password });
-            
-            // Token'ı cebe at
-            localStorage.setItem('n1fit_token', res.data.token);
-            
-            // Ana sayfadaki motoru tetikle ve modalı kapat
+            const res = await api.post('/Auth/login', { email: email.trim(), password });
+            const token = res.data.token || res.data.Token;
+
+            const payload = parseJwt(token);
+            if (payload) {
+                const userRole = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role;
+                if (userRole === 'Admin' || userRole === '1') {
+                    setError('Yönetici hesapları müşteri alanından giriş yapamaz. Lütfen yönetici panelini kullanın.');
+                    return;
+                }
+            }
+
+            localStorage.setItem('n1fit_token', token);
             onLoginSuccess();
             onClose();
+
         } catch (err) {
-            setError('Şifre Veya E-posta Yanlış!');
+            setError(err.response?.data?.message || 'E-posta adresi veya şifre hatalı. Lütfen kontrol ediniz.');
         }
     };
 
@@ -29,27 +50,27 @@ const MemberLoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
         <div style={styles.overlay}>
             <div style={styles.modal}>
                 <h2 style={{ color: '#d90429', marginTop: 0, textAlign: 'center' }}>N1FIT GİRİŞ</h2>
-                
+
                 {error && <div style={{ backgroundColor: 'rgba(217, 4, 41, 0.2)', color: '#d90429', padding: '10px', borderRadius: '5px', marginBottom: '15px', textAlign: 'center', fontWeight: 'bold' }}>{error}</div>}
-                
+
                 <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                    <input 
-                        type="email" 
-                        placeholder="E-Posta" 
-                        value={email} 
-                        onChange={e => setEmail(e.target.value)} 
-                        style={styles.input} 
-                        required 
+                    <input
+                        type="email"
+                        placeholder="E-Posta"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        style={styles.input}
+                        required
                     />
-                    <input 
-                        type="password" 
-                        placeholder="Şifre" 
-                        value={password} 
-                        onChange={e => setPassword(e.target.value)} 
-                        style={styles.input} 
-                        required 
+                    <input
+                        type="password"
+                        placeholder="Şifre"
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        style={styles.input}
+                        required
                     />
-                    
+
                     <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                         <button type="submit" style={styles.loginBtn}>GİRİŞ YAP</button>
                         <button type="button" onClick={onClose} style={styles.cancelBtn}>İPTAL</button>

@@ -1,16 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Fitness.Core.DTOs.Fitness.Core.DTOs;
 using Fitness.Core.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Fitness.Service.Service
 {
-
-
     public class Service<T> : IService<T> where T : class
     {
         private readonly IGenericRepository<T> _repository;
@@ -43,11 +37,6 @@ namespace Fitness.Service.Service
         {
             _repository.Update(entity);
             await _unitOfWork.CommitAsync();
-        }
-
-        public Task SaveWorkoutProgramAsync(int userId, SaveWorkoutProgramDto dto)
-        {
-            throw new NotImplementedException();
         }
     }
 }
