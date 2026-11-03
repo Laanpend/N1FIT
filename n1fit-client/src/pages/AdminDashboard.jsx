@@ -775,7 +775,7 @@ const AdminDashboard = () => {
                                             borderBottom: '1px solid #1e2330',
                                             display: 'flex',
                                             gap: '6px',
-                                            overflowX: 'auto',
+                                            flexWrap: 'wrap',
                                             flexShrink: 0
                                         }}>
                                             {[
@@ -876,9 +876,9 @@ const AdminDashboard = () => {
                                                                         pendingPayments.slice(0, 8).map(item => (
                                                                             <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', backgroundColor: '#0d1017', padding: '10px 12px', borderRadius: '8px', border: '1px solid #1f2533' }}>
                                                                                 <div>
-                                                                                    <div style={{ fontWeight: '800', color: '#fff', fontSize: '0.86rem' }}>{item.memberName}</div>
+                                                                                    <div style={{ fontWeight: '800', color: '#fff', fontSize: '0.86rem' }}>{item.memberFullName || item.memberName || 'Üye'}</div>
                                                                                     <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                                                                                        📦 {item.packageName || 'Üyelik Paketi'} • {item.createdDate ? new Date(item.createdDate).toLocaleDateString('tr-TR') : ''}
+                                                                                        📦 {item.packageName || 'Üyelik Paketi'} • {(item.createdAt || item.createdDate) ? new Date(item.createdAt || item.createdDate).toLocaleDateString('tr-TR') : ''}
                                                                                     </div>
                                                                                 </div>
                                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

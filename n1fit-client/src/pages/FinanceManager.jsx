@@ -61,7 +61,8 @@ const FinanceManager = () => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState(() => {
         const t = new URLSearchParams(window.location.search).get('tab');
-        return ['dashboard', 'pos', 'inventory', 'expenses', 'approvals', 'cashops', 'ledger'].includes(t) ? t : 'dashboard';
+        if (t === 'inventory') return 'products';
+        return ['dashboard', 'pos', 'products', 'expenses', 'approvals', 'cashops', 'ledger'].includes(t) ? t : 'dashboard';
     });
     const [loading, setLoading] = useState(false);
     const [toast, setToast] = useState(null);
