@@ -743,21 +743,29 @@ const AutoSlider = ({ images, styles: customStyles }) => {
                 <ChevronLeft size={28} color="white" />
             </button>
             <div style={s.sliderImageWrapper}>
-                {images.map((img, idx) => (
-                    <img
-                        key={idx}
-                        src={img}
-                        alt={`N1FIT Spor Salonu Fotoğraf ${idx + 1}`}
-                        style={{
-                            ...s.sliderImage,
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            opacity: idx === currentIndex ? 1 : 0,
-                            transition: 'opacity 0.8s ease-in-out'
-                        }}
-                    />
-                ))}
+                {images.map((img, idx) => {
+                    const isNearby = Math.abs(idx - currentIndex) <= 1 || (currentIndex === 0 && idx === images.length - 1) || (currentIndex === images.length - 1 && idx === 0);
+                    return (
+                        <img
+                            key={idx}
+                            src={img}
+                            alt={`N1FIT Spor Salonu Fotoğraf ${idx + 1}`}
+                            loading={idx === 0 ? "eager" : "lazy"}
+                            decoding="async"
+                            style={{
+                                ...s.sliderImage,
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                opacity: idx === currentIndex ? 1 : 0,
+                                transition: 'opacity 0.6s ease-in-out',
+                                willChange: 'opacity',
+                                display: isNearby ? 'block' : 'none',
+                                transform: 'translateZ(0)'
+                            }}
+                        />
+                    );
+                })}
             </div>
             <button onClick={nextSlide} style={s.sliderBtnRight} aria-label="Sonraki Fotoğraf">
                 <ChevronRight size={28} color="white" />
@@ -798,8 +806,20 @@ const Home = () => {
     const [leadSuccess, setLeadSuccess] = useState('');
     const [leadError, setLeadError] = useState('');
 
-    // Dinamik Stüdyo Konteynırları & Pop-up Yapılandırması
-    const [siteStudio, setSiteStudio] = useState({
+    // Dinamik Stüdyo Konteynırları & Pop-up Yapılandırması (Önbellekli Başlatma - Milisaniyelik Sıçramaları Engeller)
+    const [siteStudio, setSiteStudio] = useState(() => {
+        try {
+            const cached = localStorage.getItem('n1fit_site_studio_cache');
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (parsed && parsed.containers?.length > 0) {
+                    return parsed;
+                }
+            }
+        } catch (e) {
+            // LocalStorage hatası durumunda varsayılanla devam
+        }
+        return {
         containers: [
             { id: 'hero-main', type: 'HERO', order: 1, isActive: true },
             { id: 'app-body-main', type: 'APP_BODY', order: 2, isActive: true },
@@ -987,7 +1007,7 @@ const Home = () => {
             floatingWhatsAppShowOnMobile: true
         },
         topBarConfig: {
-            enabled: true,
+            enabled: false,
             badgeText: 'DUYURU',
             text: '🌸 Kadınlara Özel Seanslar: Çarşamba 09:00-20:00 | Cuma 18:00-23:00 | Pazar 09:00-17:00 • Ücretsiz Tanışma Antrenmanı İçin Formu Doldurun!',
             backgroundColor: '#111520',
@@ -997,7 +1017,7 @@ const Home = () => {
             buttonLink: '#contact'
         },
         countdownConfig: {
-            enabled: true,
+            enabled: false,
             badgeText: 'SINIRLI SÜRE',
             title: 'YENİ SEZON ERKEN KAYIT İNDİRİMİ',
             subtitle: 'Kontenjanlar dolmadan önce avantajlı üyelik fırsatını yakalayın!',
@@ -1031,7 +1051,8 @@ const Home = () => {
             cornerStyle: 'rounded',
             navbarStyle: 'blur_glass'
         }
-    });
+    };
+});
 
     // DİNAMİK TEMA MOTORU DEĞİŞKENLERİ
     const themeConfig = siteStudio.themeConfig || {};
@@ -1079,10 +1100,10 @@ const Home = () => {
     }, [siteStudio.containers, packages.length]);
 
     const defaultGymImages = [
-        "/SalonunFotolari/Salon1.jpeg", "/SalonunFotolari/Salon2.jpeg", "/SalonunFotolari/Salon3.jpeg",
-        "/SalonunFotolari/Salon4.jpeg", "/SalonunFotolari/Salon5.jpeg", "/SalonunFotolari/Salon6.jpeg",
-        "/SalonunFotolari/Salon7.jpeg", "/SalonunFotolari/Salon8.jpeg", "/SalonunFotolari/Salon9.jpeg",
-        "/SalonunFotolari/Salon10.jpeg"
+        "/SalonunFotolari/Salon1.jpeg?v=2", "/SalonunFotolari/Salon2.jpeg?v=2", "/SalonunFotolari/Salon3.jpeg?v=2",
+        "/SalonunFotolari/Salon4.jpeg?v=2", "/SalonunFotolari/Salon5.jpeg?v=2", "/SalonunFotolari/Salon6.jpeg?v=2",
+        "/SalonunFotolari/Salon7.jpeg?v=2", "/SalonunFotolari/Salon8.jpeg?v=2", "/SalonunFotolari/Salon9.jpeg?v=2",
+        "/SalonunFotolari/Salon10.jpeg?v=2"
     ];
 
     useEffect(() => {
@@ -1098,11 +1119,16 @@ const Home = () => {
             })
             .catch(err => console.log("Tesis yapılandırması çekilemedi, varsayılanlar devrede:", err));
 
-        // Dinamik Stüdyo Konteynırlarını ve Karşılama Pop-up'ını Çek
+        // Dinamik Stüdyo Konteynırlarını ve Karşılama Pop-up'ını Çek (Önbelleğe yaz - Gelecek açılışlarda 0ms sıçramasız yükleme)
         api.get('/Admin/public/site-studio')
             .then(res => {
                 if (res.data && res.data.containers?.length > 0) {
                     setSiteStudio(res.data);
+                    try {
+                        localStorage.setItem('n1fit_site_studio_cache', JSON.stringify(res.data));
+                    } catch (e) {
+                        // ignore quota error
+                    }
                 }
             })
             .catch(err => console.log("Site Studio verisi çekilemedi, varsayılan şablon devrede:", err));
@@ -1242,7 +1268,7 @@ const Home = () => {
             title: '1.5 kg - 40 kg Tam Set Dumbell Parkuru',
             desc: '1.5 kg’dan 40 kg’a kadar çift istasyon tam set kauçuk dumbellar, ayarlanabilir profesyonel sehpalar ve serbest ağırlık alanı.',
             tag: 'Serbest Ağırlık',
-            img: '/SalonunFotolari/Salon1.jpeg'
+            img: '/SalonunFotolari/Salon1.jpeg?v=2'
         },
         {
             id: 2,
@@ -1250,7 +1276,7 @@ const Home = () => {
             title: 'Leg Press & Alt Gövde İstasyonu',
             desc: 'Ağır bacak geliştirme ve alt gövde kuvvet artışı için tasarlanmış, biyomekanik açılı profesyonel Leg Press istasyonu.',
             tag: 'Özel Makine',
-            img: '/SalonunFotolari/Salon2.jpeg'
+            img: '/SalonunFotolari/Salon2.jpeg?v=2'
         },
         {
             id: 3,
@@ -1258,7 +1284,7 @@ const Home = () => {
             title: 'Squat Kafesi (Power Rack)',
             desc: 'Ağır Squat, Overhead Press ve Deadlift için ayarlanabilir emniyet barlı sağlam kafes sistemi ile sıfır riskte maksimum güç.',
             tag: 'Güç & Güvenlik',
-            img: '/SalonunFotolari/Salon3.jpeg'
+            img: '/SalonunFotolari/Salon3.jpeg?v=2'
         },
         {
             id: 4,
@@ -1266,7 +1292,7 @@ const Home = () => {
             title: 'Chest Press & İzole Göğüs Makineleri',
             desc: 'Omuz eklemini yormadan göğüs kas liflerini maksimum gerilimle hedef alan biyomekanik izole Chest Press istasyonu.',
             tag: 'İzole İstasyon',
-            img: '/SalonunFotolari/Salon4.jpeg'
+            img: '/SalonunFotolari/Salon4.jpeg?v=2'
         },
         {
             id: 5,
@@ -1274,7 +1300,7 @@ const Home = () => {
             title: 'Yüksek Tempolu Koşu Bantları',
             desc: 'Dokunmatik dijital göstergeli, eğim ve hız kontrollü profesyonel kardiyo parkuru ile yağ yakımınızı hızlandırın.',
             tag: 'Kardiyo',
-            img: '/SalonunFotolari/Salon5.jpeg'
+            img: '/SalonunFotolari/Salon5.jpeg?v=2'
         },
         {
             id: 6,
@@ -1282,7 +1308,7 @@ const Home = () => {
             title: 'Reformer & Grup Pilates Stüdyosu',
             desc: 'Esneklik, core direnci ve postür düzeltmeye odaklı özel ekipmanlı, ferah kadın ve grup pilates stüdyosu.',
             tag: 'Pilates Stüdyosu',
-            img: '/SalonunFotolari/Salon6.jpeg'
+            img: '/SalonunFotolari/Salon6.jpeg?v=2'
         },
         {
             id: 7,
@@ -1290,7 +1316,7 @@ const Home = () => {
             title: 'Lat Pulldown & Kablo İstasyonları',
             desc: 'Çok yönlü kablo açıları, Lat Pulldown ve triceps/biceps çekiş mekanizmalarıyla eksiksiz sırt ve kol gelişimi.',
             tag: 'Kablo Parkuru',
-            img: '/SalonunFotolari/Salon10.jpeg'
+            img: '/SalonunFotolari/Salon10.jpeg?v=2'
         }
     ];
 
@@ -1611,9 +1637,15 @@ const Home = () => {
 
                     <div style={styles.equipmentGrid} className="equipment-grid-responsive">
                         {filteredEquipment.map(item => (
-                            <div key={item.id} style={styles.equipmentCard}>
+                            <div key={item.id} style={{ ...styles.equipmentCard, contentVisibility: 'auto' }}>
                                 <div style={styles.equipmentImgWrapper}>
-                                    <img src={item.img} alt={item.title} style={styles.equipmentImg} />
+                                    <img
+                                        src={item.img}
+                                        alt={item.title}
+                                        loading="lazy"
+                                        decoding="async"
+                                        style={styles.equipmentImg}
+                                    />
                                     <span style={styles.equipmentBadge}>{item.tag}</span>
                                 </div>
                                 <div style={styles.equipmentBody}>
