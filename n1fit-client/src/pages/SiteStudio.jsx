@@ -206,7 +206,10 @@ const SiteStudio = () => {
     const fileInputRef = useRef(null);
 
     // Ana Durumlar
-    const [activeTab, setActiveTab] = useState('containers'); // 'containers', 'popup', 'media', 'leads', etc.
+    const [activeTab, setActiveTab] = useState(() => {
+        const t = new URLSearchParams(window.location.search).get('tab');
+        return ['containers', 'leads', 'theme', 'brand', 'automation', 'popup', 'seo', 'media'].includes(t) ? t : 'containers';
+    }); // 'containers', 'popup', 'media', 'leads', etc.
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState(null);

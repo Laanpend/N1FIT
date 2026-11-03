@@ -1,6 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import api from '../api/axiosConfig';
-import { Search, Calendar, LogOut, UserPlus, Dumbbell, CreditCard, Edit, Trash2, Users, Layers, Sparkles, Wallet } from 'lucide-react';
+import {
+    Search, Calendar, LogOut, UserPlus, Dumbbell, CreditCard, Edit, Trash2,
+    Users, Layers, Sparkles, Wallet, Bell, AlertTriangle, Package, Clock,
+    CheckCircle2, MessageCircle, ChevronDown, ChevronUp, RefreshCw, X, ExternalLink
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const parseJwt = (token) => {
@@ -40,6 +44,15 @@ const AdminDashboard = () => {
     const [dateRange, setDateRange] = useState({ start: '', end: '' });
     const [loading, setLoading] = useState(true);
     const [packages, setPackages] = useState([]);
+
+    // 🔔 Bildirim Merkezi (Zil İkonu & Gruplandırılmış Bildirimler) State'leri
+    const [showNotifications, setShowNotifications] = useState(false);
+    const [notifCategory, setNotifCategory] = useState('all'); // 'all' | 'approvals' | 'leads' | 'stock' | 'debts' | 'expiring'
+    const [collapsedGroups, setCollapsedGroups] = useState({});
+    const [notifLoading, setNotifLoading] = useState(false);
+    const [pendingPayments, setPendingPayments] = useState([]);
+    const [criticalStockProducts, setCriticalStockProducts] = useState([]);
+    const [pendingLeads, setPendingLeads] = useState([]);
 
     const [showPayDebtModal, setShowPayDebtModal] = useState(false);
     const [paymentAmount, setPaymentAmount] = useState('');
@@ -86,7 +99,126 @@ const AdminDashboard = () => {
 
         fetchMembers();
         fetchPackages();
+        fetchNotificationsData();
     }, [navigate]);
+
+    const fetchNotificationsData = async () => {
+        setNotifLoading(true);
+        try {
+            const [pendingRes, prodRes, leadsRes] = await Promise.allSettled([
+                api.get('/Finance/pending-memberships?status=Pending'),
+                api.get('/Finance/products'),
+                api.get('/Admin/site-leads')
+            ]);
+
+            if (pendingRes.status === 'fulfilled' && Array.isArray(pendingRes.value.data)) {
+                setPendingPayments(pendingRes.value.data);
+            }
+            if (prodRes.status === 'fulfilled' && Array.isArray(prodRes.value.data)) {
+                const lowStock = prodRes.value.data.filter(
+                    p => p.isActive !== false && Number(p.stockQuantity ?? 0) <= Number(p.criticalStockLevel ?? 5)
+                );
+                setCriticalStockProducts(lowStock);
+            }
+            if (leadsRes.status === 'fulfilled' && Array.isArray(leadsRes.value.data)) {
+                const waitingLeads = leadsRes.value.data.filter(l => (l.status || 'Bekliyor') === 'Bekliyor');
+                setPendingLeads(waitingLeads);
+            }
+        } catch (err) {
+            console.error("Bildirim verileri çekilemedi:", err);
+        } finally {
+            setNotifLoading(false);
+        }
+    };
+
+    const handleMarkLeadContacted = async (leadId) => {
+        try {
+            await api.put(`/Admin/site-leads/${leadId}/status`, { status: 'Görüşüldü' });
+            setPendingLeads(prev => prev.filter(l => l.id !== leadId));
+        } catch {
+            alert('Başvuru durumu güncellenemedi.');
+        }
+    };
+
+    const handleWhatsAppLead = async (lead) => {
+        const cleanPhone = String(lead.phone || '').replace(/\D/g, '');
+        const formattedPhone = cleanPhone.startsWith('90') ? cleanPhone : cleanPhone.startsWith('0') ? `9${cleanPhone}` : `90${cleanPhone}`;
+        const msg = encodeURIComponent(
+            `Merhaba ${lead.fullName}, N1FIT Spor Merkezi'ne bıraktığınız "${lead.goal || 'Ücretsiz Tanışma'}" ön kayıt başvurunuz için ulaşıyoruz. Size nasıl yardımcı olabiliriz?`
+        );
+        window.open(`https://wa.me/${formattedPhone}?text=${msg}`, '_blank');
+        if (lead.status === 'Bekliyor') {
+            handleMarkLeadContacted(lead.id);
+        }
+    };
+
+    const handleWhatsAppExpiringMember = (member, daysLeft) => {
+        const cleanPhone = String(member.phoneNumber || '').replace(/\D/g, '');
+        if (!cleanPhone) return alert('Üyenin kayıtlı telefon numarası bulunmuyor.');
+        const formattedPhone = cleanPhone.startsWith('90') ? cleanPhone : cleanPhone.startsWith('0') ? `9${cleanPhone}` : `90${cleanPhone}`;
+        const name = member.fullName || `${member.firstName || ''} ${member.lastName || ''}`.trim();
+        const msg = encodeURIComponent(
+            `Merhaba ${name}, N1FIT Spor Merkezi üyeliğinizin bitmesine ${daysLeft === 0 ? 'bugün son gün' : `${daysLeft} gün kaldı`}. Antrenmanlarınıza kesintisiz devam etmek için üyeliğinizi yenileyebilirsiniz! 💪`
+        );
+        window.open(`https://wa.me/${formattedPhone}?text=${msg}`, '_blank');
+    };
+
+    const toggleGroupCollapse = (groupKey) => {
+        setCollapsedGroups(prev => ({ ...prev, [groupKey]: !prev[groupKey] }));
+    };
+
+    // Üyelerden türetilen bildirim grupları (Cari Borçlular & Süresi 5 Gün İçinde Bitecekler)
+    const { debtorMembers, totalReceivableDebt, expiringSoonMembers } = useMemo(() => {
+        const debtors = [];
+        let debtSum = 0;
+        const expiring = [];
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        for (const m of (members || [])) {
+            if (!m) continue;
+            const name = m.fullName || `${m.firstName || ''} ${m.lastName || ''}`.trim() || 'İsimsiz Üye';
+            const kalanBorc = Math.max(0, Number(m.totalDebt || 0) - Number(m.paidAmount || 0));
+            if (kalanBorc > 0) {
+                debtors.push({ ...m, displayName: name, kalanBorc });
+                debtSum += kalanBorc;
+            }
+
+            if (!m.isFrozen && m.subscriptionEndDate) {
+                const endDate = new Date(m.subscriptionEndDate);
+                endDate.setHours(0, 0, 0, 0);
+                const startDate = m.membershipStartDate ? new Date(m.membershipStartDate) : null;
+                if (startDate) startDate.setHours(0, 0, 0, 0);
+                const isStarted = !startDate || startDate <= today;
+                const daysLeft = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+                if (isStarted && daysLeft >= 0 && daysLeft <= 5) {
+                    expiring.push({ ...m, displayName: name, daysLeft });
+                }
+            }
+        }
+
+        debtors.sort((a, b) => b.kalanBorc - a.kalanBorc);
+        expiring.sort((a, b) => a.daysLeft - b.daysLeft);
+
+        return {
+            debtorMembers: debtors,
+            totalReceivableDebt: debtSum,
+            expiringSoonMembers: expiring
+        };
+    }, [members]);
+
+    const pendingApprovalsTotalAmount = useMemo(
+        () => pendingPayments.reduce((acc, item) => acc + Number(item.amount || 0), 0),
+        [pendingPayments]
+    );
+
+    const totalNotificationsCount =
+        pendingPayments.length +
+        pendingLeads.length +
+        criticalStockProducts.length +
+        debtorMembers.length +
+        expiringSoonMembers.length;
 
     const fetchMembers = async () => {
         try {
@@ -344,6 +476,7 @@ const AdminDashboard = () => {
 
             setShowModal(false);
             fetchMembers();
+            fetchNotificationsData();
         } catch (err) {
             alert(err.response?.data?.message || "Kayıt/Güncelleme sırasında bir hata oluştu.");
         }
@@ -363,6 +496,7 @@ const AdminDashboard = () => {
             setShowPayDebtModal(false);
             setPaymentAmount('');
             fetchMembers();
+            fetchNotificationsData();
 
         } catch (err) {
             console.error("Ödeme hatası:", err);
@@ -413,13 +547,664 @@ const AdminDashboard = () => {
     return (
         <div style={styles.container}>
             <div style={styles.main}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', flexWrap: 'wrap', gap: '14px', position: 'relative' }}>
                     <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <span style={{ color: '#d90429', fontWeight: '900' }}>N1FIT</span> YÖNETİM PANELİ
                     </h2>
-                    <button onClick={() => { localStorage.removeItem('n1fit_token'); navigate('/admin/login'); }} style={styles.logoutBtn}>
-                        <LogOut size={18} /> Çıkış
-                    </button>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                        {/* Hızlı Kritik Durum Rozetleri (Tıklanınca ilgili bildirim grubunu açar) */}
+                        {pendingPayments.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => { setNotifCategory('approvals'); setShowNotifications(true); }}
+                                style={{
+                                    backgroundColor: 'rgba(245, 158, 11, 0.14)',
+                                    border: '1px solid rgba(245, 158, 11, 0.5)',
+                                    color: '#fbbf24',
+                                    padding: '7px 12px',
+                                    borderRadius: '20px',
+                                    fontSize: '0.78rem',
+                                    fontWeight: '800',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}
+                                title="Kasa onayı bekleyen üyelik tahsilatları"
+                            >
+                                ⏳ {pendingPayments.length} Tahsilat Onayı ({pendingApprovalsTotalAmount.toLocaleString('tr-TR')} ₺)
+                            </button>
+                        )}
+                        {pendingLeads.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => { setNotifCategory('leads'); setShowNotifications(true); }}
+                                style={{
+                                    backgroundColor: 'rgba(59, 130, 246, 0.14)',
+                                    border: '1px solid rgba(59, 130, 246, 0.5)',
+                                    color: '#60a5fa',
+                                    padding: '7px 12px',
+                                    borderRadius: '20px',
+                                    fontSize: '0.78rem',
+                                    fontWeight: '800',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}
+                                title="Web sitesinden gelen bekleyen ön kayıt başvuruları"
+                            >
+                                📋 {pendingLeads.length} Ön Başvuru
+                            </button>
+                        )}
+                        {criticalStockProducts.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => { setNotifCategory('stock'); setShowNotifications(true); }}
+                                style={{
+                                    backgroundColor: 'rgba(217, 4, 41, 0.15)',
+                                    border: '1px solid rgba(217, 4, 41, 0.55)',
+                                    color: '#f87171',
+                                    padding: '7px 12px',
+                                    borderRadius: '20px',
+                                    fontSize: '0.78rem',
+                                    fontWeight: '800',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}
+                                title="Kritik stok seviyesinin altına düşen ürünler"
+                            >
+                                📦 {criticalStockProducts.length} Kritik Stok
+                            </button>
+                        )}
+
+                        {/* 🔔 ZİL İKONU & BİLDİRİM MERKEZİ BUTONU */}
+                        <div style={{ position: 'relative' }}>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const nextState = !showNotifications;
+                                    setShowNotifications(nextState);
+                                    if (nextState) fetchNotificationsData();
+                                }}
+                                style={{
+                                    position: 'relative',
+                                    backgroundColor: showNotifications ? '#d90429' : '#14161d',
+                                    color: '#ffffff',
+                                    border: totalNotificationsCount > 0 ? '1px solid #d90429' : '1px solid #333',
+                                    padding: '9px 15px',
+                                    borderRadius: '10px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    fontWeight: '800',
+                                    fontSize: '0.9rem',
+                                    boxShadow: totalNotificationsCount > 0 ? '0 0 18px rgba(217, 4, 41, 0.35)' : 'none',
+                                    transition: 'all 0.2s ease'
+                                }}
+                                title="Bildirim ve Uyarı Merkezini Aç"
+                            >
+                                <Bell size={19} color={showNotifications ? '#fff' : (totalNotificationsCount > 0 ? '#f87171' : '#aaa')} />
+                                <span>Bildirimler</span>
+                                {totalNotificationsCount > 0 && (
+                                    <span style={{
+                                        backgroundColor: showNotifications ? '#ffffff' : '#d90429',
+                                        color: showNotifications ? '#d90429' : '#ffffff',
+                                        fontSize: '0.75rem',
+                                        fontWeight: '900',
+                                        padding: '2px 8px',
+                                        borderRadius: '20px',
+                                        minWidth: '22px',
+                                        textAlign: 'center'
+                                    }}>
+                                        {totalNotificationsCount}
+                                    </span>
+                                )}
+                            </button>
+
+                            {/* GRUPLANDIRILMIŞ BİLDİRİM MERKEZİ PANELİ */}
+                            {showNotifications && (
+                                <>
+                                    <div
+                                        onClick={() => setShowNotifications(false)}
+                                        style={{ position: 'fixed', inset: 0, zIndex: 1999, backgroundColor: 'rgba(0,0,0,0.35)' }}
+                                    />
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: 'calc(100% + 12px)',
+                                        right: 0,
+                                        width: '560px',
+                                        maxWidth: '94vw',
+                                        maxHeight: '80vh',
+                                        backgroundColor: '#0e1017',
+                                        border: '1px solid #2b3040',
+                                        borderRadius: '16px',
+                                        boxShadow: '0 24px 60px rgba(0,0,0,0.92), 0 0 30px rgba(217, 4, 41, 0.22)',
+                                        zIndex: 2000,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        overflow: 'hidden'
+                                    }}>
+                                        {/* Panel Üst Başlık */}
+                                        <div style={{
+                                            padding: '16px 20px',
+                                            backgroundColor: '#141822',
+                                            borderBottom: '1px solid #232838',
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            gap: '10px'
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <div style={{
+                                                    width: '36px',
+                                                    height: '36px',
+                                                    borderRadius: '10px',
+                                                    backgroundColor: 'rgba(217, 4, 41, 0.18)',
+                                                    border: '1px solid rgba(217, 4, 41, 0.45)',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center'
+                                                }}>
+                                                    <Bell size={18} color="#f87171" />
+                                                </div>
+                                                <div>
+                                                    <div style={{ fontWeight: '900', fontSize: '1rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <span>Önemli Olaylar & Bildirim Merkezi</span>
+                                                        <span style={{ backgroundColor: '#d90429', color: '#fff', fontSize: '0.72rem', padding: '2px 8px', borderRadius: '12px', fontWeight: '900' }}>
+                                                            {totalNotificationsCount} Kayıt
+                                                        </span>
+                                                    </div>
+                                                    <div style={{ fontSize: '0.76rem', color: '#8e96a8', marginTop: '2px' }}>
+                                                        Unutulmaması gereken tahsilat, başvuru, stok ve üyelik uyarıları
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { fetchNotificationsData(); fetchMembers(); }}
+                                                    style={{
+                                                        backgroundColor: '#1d2230',
+                                                        border: '1px solid #2e364a',
+                                                        color: '#cbd5e1',
+                                                        padding: '7px 10px',
+                                                        borderRadius: '8px',
+                                                        cursor: 'pointer',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '5px',
+                                                        fontSize: '0.75rem',
+                                                        fontWeight: '700'
+                                                    }}
+                                                    title="Bildirimleri Şimdi Yenile"
+                                                >
+                                                    <RefreshCw size={14} /> {notifLoading ? '...' : 'Yenile'}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowNotifications(false)}
+                                                    style={{
+                                                        backgroundColor: 'transparent',
+                                                        border: '1px solid #2e364a',
+                                                        color: '#94a3b8',
+                                                        width: '32px',
+                                                        height: '32px',
+                                                        borderRadius: '8px',
+                                                        cursor: 'pointer',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center'
+                                                    }}
+                                                    title="Kapat"
+                                                >
+                                                    <X size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Kategori Filtre Sekmeleri */}
+                                        <div style={{
+                                            padding: '10px 16px',
+                                            backgroundColor: '#10131b',
+                                            borderBottom: '1px solid #1e2330',
+                                            display: 'flex',
+                                            gap: '6px',
+                                            overflowX: 'auto'
+                                        }}>
+                                            {[
+                                                { id: 'all', label: 'Tümü', count: totalNotificationsCount, color: '#d90429' },
+                                                { id: 'approvals', label: '⏳ Tahsilat Onayı', count: pendingPayments.length, color: '#f59e0b' },
+                                                { id: 'leads', label: '📋 Ön Başvurular', count: pendingLeads.length, color: '#3b82f6' },
+                                                { id: 'stock', label: '📦 Kritik Stok', count: criticalStockProducts.length, color: '#ef4444' },
+                                                { id: 'debts', label: '💳 Cari Borçlar', count: debtorMembers.length, color: '#a855f7' },
+                                                { id: 'expiring', label: '⏰ Süresi Bitenler', count: expiringSoonMembers.length, color: '#10b981' }
+                                            ].map(tab => {
+                                                const active = notifCategory === tab.id;
+                                                return (
+                                                    <button
+                                                        key={tab.id}
+                                                        type="button"
+                                                        onClick={() => setNotifCategory(tab.id)}
+                                                        style={{
+                                                            backgroundColor: active ? tab.color : '#181c28',
+                                                            color: active ? '#ffffff' : '#94a3b8',
+                                                            border: active ? `1px solid ${tab.color}` : '1px solid #252b3b',
+                                                            padding: '6px 11px',
+                                                            borderRadius: '20px',
+                                                            fontSize: '0.75rem',
+                                                            fontWeight: '800',
+                                                            cursor: 'pointer',
+                                                            whiteSpace: 'nowrap',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '6px'
+                                                        }}
+                                                    >
+                                                        <span>{tab.label}</span>
+                                                        <span style={{
+                                                            backgroundColor: active ? 'rgba(0,0,0,0.28)' : '#23293a',
+                                                            color: '#fff',
+                                                            padding: '1px 6px',
+                                                            borderRadius: '10px',
+                                                            fontSize: '0.7rem'
+                                                        }}>
+                                                            {tab.count}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Gruplandırılmış Bildirim Listesi */}
+                                        <div style={{ padding: '16px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '62vh' }}>
+                                            {totalNotificationsCount === 0 ? (
+                                                <div style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8' }}>
+                                                    <CheckCircle2 size={42} color="#4ade80" style={{ marginBottom: '10px' }} />
+                                                    <div style={{ fontSize: '1rem', fontWeight: '800', color: '#fff' }}>Harika! Bekleyen Kritik Uyarı Yok</div>
+                                                    <div style={{ fontSize: '0.84rem', marginTop: '4px' }}>
+                                                        Tüm üyelik tahsilatları, ön başvurular ve stok seviyeleri güncel durumda.
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    {/* GRUP 1: TAHSİLAT / KASA ONAYI BEKLEYEN ÜYELİKLER */}
+                                                    {(notifCategory === 'all' || notifCategory === 'approvals') && (
+                                                        <div style={{ backgroundColor: '#131722', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: '12px', overflow: 'hidden' }}>
+                                                            <div
+                                                                onClick={() => toggleGroupCollapse('approvals')}
+                                                                style={{
+                                                                    padding: '12px 14px',
+                                                                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                                                                    display: 'flex',
+                                                                    justifyContent: 'space-between',
+                                                                    alignItems: 'center',
+                                                                    cursor: 'pointer'
+                                                                }}
+                                                            >
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '900', color: '#fbbf24', fontSize: '0.86rem' }}>
+                                                                    <Wallet size={17} />
+                                                                    <span>Tahsilat / Kasa Onayı Bekleyen Üyelikler ({pendingPayments.length})</span>
+                                                                </div>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                    {pendingApprovalsTotalAmount > 0 && (
+                                                                        <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#fde68a', backgroundColor: 'rgba(245,158,11,0.2)', padding: '3px 8px', borderRadius: '8px' }}>
+                                                                            {pendingApprovalsTotalAmount.toLocaleString('tr-TR')} ₺
+                                                                        </span>
+                                                                    )}
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => { e.stopPropagation(); setShowNotifications(false); navigate('/admin/finance?tab=approvals'); }}
+                                                                        style={{ backgroundColor: '#f59e0b', color: '#0a0a0a', border: 'none', padding: '4px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '900', cursor: 'pointer' }}
+                                                                    >
+                                                                        Onay Ekranı →
+                                                                    </button>
+                                                                    {collapsedGroups.approvals ? <ChevronDown size={16} color="#fbbf24" /> : <ChevronUp size={16} color="#fbbf24" />}
+                                                                </div>
+                                                            </div>
+                                                            {!collapsedGroups.approvals && (
+                                                                <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                                    {pendingPayments.length === 0 ? (
+                                                                        <div style={{ fontSize: '0.8rem', color: '#64748b', padding: '6px' }}>Onay bekleyen üyelik tahsilatı bulunmuyor.</div>
+                                                                    ) : (
+                                                                        pendingPayments.slice(0, 8).map(item => (
+                                                                            <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', backgroundColor: '#0d1017', padding: '10px 12px', borderRadius: '8px', border: '1px solid #1f2533' }}>
+                                                                                <div>
+                                                                                    <div style={{ fontWeight: '800', color: '#fff', fontSize: '0.86rem' }}>{item.memberName}</div>
+                                                                                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                                                                                        📦 {item.packageName || 'Üyelik Paketi'} • {item.createdDate ? new Date(item.createdDate).toLocaleDateString('tr-TR') : ''}
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                                    <span style={{ fontWeight: '900', color: '#fbbf24', fontSize: '0.88rem' }}>
+                                                                                        {Number(item.amount || 0).toLocaleString('tr-TR')} ₺
+                                                                                    </span>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => { setShowNotifications(false); navigate('/admin/finance?tab=approvals'); }}
+                                                                                        style={{ backgroundColor: 'rgba(245, 158, 11, 0.18)', border: '1px solid #f59e0b', color: '#fcd34d', padding: '5px 10px', borderRadius: '6px', fontSize: '0.73rem', fontWeight: '800', cursor: 'pointer' }}
+                                                                                    >
+                                                                                        Nakit/POS Seç →
+                                                                                    </button>
+                                                                                </div>
+                                                                            </div>
+                                                                        ))
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* GRUP 2: WEB ÖN BAŞVURU & ÜCRETSİZ TANIŞMA FORMLARI */}
+                                                    {(notifCategory === 'all' || notifCategory === 'leads') && (
+                                                        <div style={{ backgroundColor: '#131722', border: '1px solid rgba(59, 130, 246, 0.35)', borderRadius: '12px', overflow: 'hidden' }}>
+                                                            <div
+                                                                onClick={() => toggleGroupCollapse('leads')}
+                                                                style={{
+                                                                    padding: '12px 14px',
+                                                                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                                                    display: 'flex',
+                                                                    justifyContent: 'space-between',
+                                                                    alignItems: 'center',
+                                                                    cursor: 'pointer'
+                                                                }}
+                                                            >
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '900', color: '#60a5fa', fontSize: '0.86rem' }}>
+                                                                    <Sparkles size={17} />
+                                                                    <span>Web Ön Başvuru & Tanışma Formları ({pendingLeads.length})</span>
+                                                                </div>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => { e.stopPropagation(); setShowNotifications(false); navigate('/admin/studio?tab=leads'); }}
+                                                                        style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '900', cursor: 'pointer' }}
+                                                                    >
+                                                                        Lead Havuzu →
+                                                                    </button>
+                                                                    {collapsedGroups.leads ? <ChevronDown size={16} color="#60a5fa" /> : <ChevronUp size={16} color="#60a5fa" />}
+                                                                </div>
+                                                            </div>
+                                                            {!collapsedGroups.leads && (
+                                                                <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                                    {pendingLeads.length === 0 ? (
+                                                                        <div style={{ fontSize: '0.8rem', color: '#64748b', padding: '6px' }}>Bekleyen yeni web ön başvurusu bulunmuyor.</div>
+                                                                    ) : (
+                                                                        pendingLeads.slice(0, 8).map(lead => (
+                                                                            <div key={lead.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', backgroundColor: '#0d1017', padding: '10px 12px', borderRadius: '8px', border: '1px solid #1f2533', flexWrap: 'wrap' }}>
+                                                                                <div style={{ flex: 1, minWidth: '180px' }}>
+                                                                                    <div style={{ fontWeight: '800', color: '#fff', fontSize: '0.86rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                                        <span>{lead.fullName}</span>
+                                                                                        <span style={{ fontSize: '0.72rem', color: '#93c5fd', backgroundColor: 'rgba(59,130,246,0.15)', padding: '1px 7px', borderRadius: '10px' }}>
+                                                                                            {lead.phone}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
+                                                                                        🎯 {lead.goal || 'Genel Bilgi'} • 🕒 {lead.preferredTime || '-'}
+                                                                                    </div>
+                                                                                    {lead.note && (
+                                                                                        <div style={{ fontSize: '0.73rem', color: '#cbd5e1', fontStyle: 'italic', marginTop: '3px' }}>
+                                                                                            "{lead.note}"
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => handleWhatsAppLead(lead)}
+                                                                                        style={{ backgroundColor: '#22c55e', color: '#052e16', border: 'none', padding: '5px 9px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                                                                    >
+                                                                                        <MessageCircle size={13} /> WhatsApp
+                                                                                    </button>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => handleMarkLeadContacted(lead.id)}
+                                                                                        style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#cbd5e1', padding: '5px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer' }}
+                                                                                        title="Görüşüldü olarak işaretle"
+                                                                                    >
+                                                                                        ✓ Görüşüldü
+                                                                                    </button>
+                                                                                </div>
+                                                                            </div>
+                                                                        ))
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* GRUP 3: KRİTİK STOK & TÜKENEN ÜRÜN UYARILARI */}
+                                                    {(notifCategory === 'all' || notifCategory === 'stock') && (
+                                                        <div style={{ backgroundColor: '#131722', border: '1px solid rgba(239, 68, 68, 0.35)', borderRadius: '12px', overflow: 'hidden' }}>
+                                                            <div
+                                                                onClick={() => toggleGroupCollapse('stock')}
+                                                                style={{
+                                                                    padding: '12px 14px',
+                                                                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                                                    display: 'flex',
+                                                                    justifyContent: 'space-between',
+                                                                    alignItems: 'center',
+                                                                    cursor: 'pointer'
+                                                                }}
+                                                            >
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '900', color: '#f87171', fontSize: '0.86rem' }}>
+                                                                    <Package size={17} />
+                                                                    <span>Kritik Stok & Tükenen Ürün Uyarıları ({criticalStockProducts.length})</span>
+                                                                </div>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => { e.stopPropagation(); setShowNotifications(false); navigate('/admin/finance?tab=inventory'); }}
+                                                                        style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '900', cursor: 'pointer' }}
+                                                                    >
+                                                                        Stok Yönetimi →
+                                                                    </button>
+                                                                    {collapsedGroups.stock ? <ChevronDown size={16} color="#f87171" /> : <ChevronUp size={16} color="#f87171" />}
+                                                                </div>
+                                                            </div>
+                                                            {!collapsedGroups.stock && (
+                                                                <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                                    {criticalStockProducts.length === 0 ? (
+                                                                        <div style={{ fontSize: '0.8rem', color: '#64748b', padding: '6px' }}>Kritik stok seviyesinin altında ürün bulunmuyor.</div>
+                                                                    ) : (
+                                                                        criticalStockProducts.map(prod => {
+                                                                            const isOut = Number(prod.stockQuantity ?? 0) <= 0;
+                                                                            return (
+                                                                                <div key={prod.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', backgroundColor: '#0d1017', padding: '10px 12px', borderRadius: '8px', border: isOut ? '1px solid rgba(239,68,68,0.45)' : '1px solid #1f2533' }}>
+                                                                                    <div>
+                                                                                        <div style={{ fontWeight: '800', color: '#fff', fontSize: '0.86rem' }}>{prod.name}</div>
+                                                                                        <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                                                                                            Kategori: {prod.category || 'Genel'} • Satış: {Number(prod.sellingPrice || 0).toLocaleString('tr-TR')} ₺
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                                        <span style={{
+                                                                                            backgroundColor: isOut ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                                                                                            border: `1px solid ${isOut ? '#ef4444' : '#f59e0b'}`,
+                                                                                            color: isOut ? '#fca5a5' : '#fde68a',
+                                                                                            padding: '3px 8px',
+                                                                                            borderRadius: '6px',
+                                                                                            fontSize: '0.73rem',
+                                                                                            fontWeight: '900'
+                                                                                        }}>
+                                                                                            {isOut ? '🚨 TÜKENDİ (0 Adet)' : `⚠️ Kalan: ${prod.stockQuantity} Adet`}
+                                                                                        </span>
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={() => { setShowNotifications(false); navigate('/admin/finance?tab=inventory'); }}
+                                                                                            style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#e2e8f0', padding: '5px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
+                                                                                        >
+                                                                                            + Stok Gir
+                                                                                        </button>
+                                                                                    </div>
+                                                                                </div>
+                                                                            );
+                                                                        })
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* GRUP 4: CARİ BORCU / VERESİYESİ BULUNAN ÜYELER */}
+                                                    {(notifCategory === 'all' || notifCategory === 'debts') && (
+                                                        <div style={{ backgroundColor: '#131722', border: '1px solid rgba(168, 85, 247, 0.35)', borderRadius: '12px', overflow: 'hidden' }}>
+                                                            <div
+                                                                onClick={() => toggleGroupCollapse('debts')}
+                                                                style={{
+                                                                    padding: '12px 14px',
+                                                                    backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                                                                    display: 'flex',
+                                                                    justifyContent: 'space-between',
+                                                                    alignItems: 'center',
+                                                                    cursor: 'pointer'
+                                                                }}
+                                                            >
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '900', color: '#c084fc', fontSize: '0.86rem' }}>
+                                                                    <CreditCard size={17} />
+                                                                    <span>Cari Borcu / Veresiyesi Bulunan Üyeler ({debtorMembers.length})</span>
+                                                                </div>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                    {totalReceivableDebt > 0 && (
+                                                                        <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#e9d5ff', backgroundColor: 'rgba(168,85,247,0.2)', padding: '3px 8px', borderRadius: '8px' }}>
+                                                                            Alacak: {totalReceivableDebt.toLocaleString('tr-TR')} ₺
+                                                                        </span>
+                                                                    )}
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setStatusFilter('InDebt');
+                                                                            setCurrentPage(1);
+                                                                            setShowNotifications(false);
+                                                                        }}
+                                                                        style={{ backgroundColor: '#a855f7', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '900', cursor: 'pointer' }}
+                                                                    >
+                                                                        Tabloda Filtrele
+                                                                    </button>
+                                                                    {collapsedGroups.debts ? <ChevronDown size={16} color="#c084fc" /> : <ChevronUp size={16} color="#c084fc" />}
+                                                                </div>
+                                                            </div>
+                                                            {!collapsedGroups.debts && (
+                                                                <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                                    {debtorMembers.length === 0 ? (
+                                                                        <div style={{ fontSize: '0.8rem', color: '#64748b', padding: '6px' }}>Cari borcu bulunan üye yok.</div>
+                                                                    ) : (
+                                                                        debtorMembers.slice(0, 8).map(m => (
+                                                                            <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', backgroundColor: '#0d1017', padding: '10px 12px', borderRadius: '8px', border: '1px solid #1f2533' }}>
+                                                                                <div>
+                                                                                    <div style={{ fontWeight: '800', color: '#fff', fontSize: '0.86rem' }}>{m.displayName}</div>
+                                                                                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>📞 {m.phoneNumber || '-'}</div>
+                                                                                </div>
+                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                                    <span style={{ fontWeight: '900', color: '#f87171', fontSize: '0.86rem' }}>
+                                                                                        {m.kalanBorc.toLocaleString('tr-TR')} ₺ Borç
+                                                                                    </span>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                            setShowNotifications(false);
+                                                                                            navigate(`/admin/member/${m.id}`);
+                                                                                        }}
+                                                                                        style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#e2e8f0', padding: '5px 9px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
+                                                                                    >
+                                                                                        Üye Kartı →
+                                                                                    </button>
+                                                                                </div>
+                                                                            </div>
+                                                                        ))
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* GRUP 5: ÜYELİĞİ YAKINDA BİTECEK ÜYELER (SON 5 GÜN) */}
+                                                    {(notifCategory === 'all' || notifCategory === 'expiring') && (
+                                                        <div style={{ backgroundColor: '#131722', border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: '12px', overflow: 'hidden' }}>
+                                                            <div
+                                                                onClick={() => toggleGroupCollapse('expiring')}
+                                                                style={{
+                                                                    padding: '12px 14px',
+                                                                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                                                    display: 'flex',
+                                                                    justifyContent: 'space-between',
+                                                                    alignItems: 'center',
+                                                                    cursor: 'pointer'
+                                                                }}
+                                                            >
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '900', color: '#34d399', fontSize: '0.86rem' }}>
+                                                                    <Clock size={17} />
+                                                                    <span>Üyeliği Yakında Bitecekler - Son 5 Gün ({expiringSoonMembers.length})</span>
+                                                                </div>
+                                                                {collapsedGroups.expiring ? <ChevronDown size={16} color="#34d399" /> : <ChevronUp size={16} color="#34d399" />}
+                                                            </div>
+                                                            {!collapsedGroups.expiring && (
+                                                                <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                                    {expiringSoonMembers.length === 0 ? (
+                                                                        <div style={{ fontSize: '0.8rem', color: '#64748b', padding: '6px' }}>Önümüzdeki 5 gün içinde üyeliği bitecek sporcu bulunmuyor.</div>
+                                                                    ) : (
+                                                                        expiringSoonMembers.map(m => (
+                                                                            <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', backgroundColor: '#0d1017', padding: '10px 12px', borderRadius: '8px', border: '1px solid #1f2533', flexWrap: 'wrap' }}>
+                                                                                <div>
+                                                                                    <div style={{ fontWeight: '800', color: '#fff', fontSize: '0.86rem' }}>{m.displayName}</div>
+                                                                                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                                                                                        📞 {m.phoneNumber || '-'} • Bitiş: {new Date(m.subscriptionEndDate).toLocaleDateString('tr-TR')}
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                                    <span style={{
+                                                                                        backgroundColor: m.daysLeft === 0 ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.18)',
+                                                                                        color: m.daysLeft === 0 ? '#fca5a5' : '#fde68a',
+                                                                                        padding: '3px 8px',
+                                                                                        borderRadius: '6px',
+                                                                                        fontSize: '0.72rem',
+                                                                                        fontWeight: '900'
+                                                                                    }}>
+                                                                                        {m.daysLeft === 0 ? '🚨 BUGÜN SON' : `⏳ ${m.daysLeft} Gün Kaldı`}
+                                                                                    </span>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                            setShowNotifications(false);
+                                                                                            openRenewModal(m);
+                                                                                        }}
+                                                                                        style={{ backgroundColor: '#10b981', color: '#052e16', border: 'none', padding: '5px 9px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '900', cursor: 'pointer' }}
+                                                                                    >
+                                                                                        + Uzat
+                                                                                    </button>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => handleWhatsAppExpiringMember(m, m.daysLeft)}
+                                                                                        style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#4ade80', padding: '5px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
+                                                                                        title="WhatsApp'tan Süre Hatırlatması Gönder"
+                                                                                    >
+                                                                                        💬
+                                                                                    </button>
+                                                                                </div>
+                                                                            </div>
+                                                                        ))
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        <button onClick={() => { localStorage.removeItem('n1fit_token'); navigate('/admin/login'); }} style={styles.logoutBtn}>
+                            <LogOut size={18} /> Çıkış
+                        </button>
+                    </div>
                 </div>
                 <div style={styles.filterBar}>
                     <div style={styles.searchBox}>
@@ -903,6 +1688,7 @@ const AdminDashboard = () => {
                                             alert("Üyelik Süresi Uzatıldı!");
                                             setShowRenewModal(false);
                                             fetchMembers();
+                                            fetchNotificationsData();
                                         } catch {
                                             alert("Üyelik uzatılırken bir hata oluştu!");
                                         }

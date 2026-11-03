@@ -59,7 +59,10 @@ const normalizeTurkishSearch = (text) => {
 
 const FinanceManager = () => {
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState('dashboard');
+    const [activeTab, setActiveTab] = useState(() => {
+        const t = new URLSearchParams(window.location.search).get('tab');
+        return ['dashboard', 'pos', 'inventory', 'expenses', 'approvals', 'cashops', 'ledger'].includes(t) ? t : 'dashboard';
+    });
     const [loading, setLoading] = useState(false);
     const [toast, setToast] = useState(null);
 
