@@ -775,7 +775,8 @@ const AdminDashboard = () => {
                                             borderBottom: '1px solid #1e2330',
                                             display: 'flex',
                                             gap: '6px',
-                                            overflowX: 'auto'
+                                            overflowX: 'auto',
+                                            flexShrink: 0
                                         }}>
                                             {[
                                                 { id: 'all', label: 'Tümü', count: totalNotificationsCount, color: '#d90429' },
@@ -835,7 +836,7 @@ const AdminDashboard = () => {
                                                 <>
                                                     {/* GRUP 1: TAHSİLAT / KASA ONAYI BEKLEYEN ÜYELİKLER */}
                                                     {(notifCategory === 'all' || notifCategory === 'approvals') && (
-                                                        <div style={{ backgroundColor: '#131722', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: '12px', overflow: 'hidden' }}>
+                                                        <div style={{ backgroundColor: '#131722', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: '12px', overflow: 'hidden', flexShrink: 0 }}>
                                                             <div
                                                                 onClick={() => toggleGroupCollapse('approvals')}
                                                                 style={{
@@ -902,7 +903,7 @@ const AdminDashboard = () => {
 
                                                     {/* GRUP 2: WEB ÖN BAŞVURU & ÜCRETSİZ TANIŞMA FORMLARI */}
                                                     {(notifCategory === 'all' || notifCategory === 'leads') && (
-                                                        <div style={{ backgroundColor: '#131722', border: '1px solid rgba(59, 130, 246, 0.35)', borderRadius: '12px', overflow: 'hidden' }}>
+                                                        <div style={{ backgroundColor: '#131722', border: '1px solid rgba(59, 130, 246, 0.35)', borderRadius: '12px', overflow: 'hidden', flexShrink: 0 }}>
                                                             <div
                                                                 onClick={() => toggleGroupCollapse('leads')}
                                                                 style={{
@@ -979,7 +980,7 @@ const AdminDashboard = () => {
 
                                                     {/* GRUP 3: KRİTİK STOK & TÜKENEN ÜRÜN UYARILARI */}
                                                     {(notifCategory === 'all' || notifCategory === 'stock') && (
-                                                        <div style={{ backgroundColor: '#131722', border: '1px solid rgba(239, 68, 68, 0.35)', borderRadius: '12px', overflow: 'hidden' }}>
+                                                        <div style={{ backgroundColor: '#131722', border: '1px solid rgba(239, 68, 68, 0.35)', borderRadius: '12px', overflow: 'hidden', flexShrink: 0 }}>
                                                             <div
                                                                 onClick={() => toggleGroupCollapse('stock')}
                                                                 style={{
@@ -1052,7 +1053,7 @@ const AdminDashboard = () => {
 
                                                     {/* GRUP 4: CARİ BORCU / VERESİYESİ BULUNAN ÜYELER */}
                                                     {(notifCategory === 'all' || notifCategory === 'debts') && (
-                                                        <div style={{ backgroundColor: '#131722', border: '1px solid rgba(168, 85, 247, 0.35)', borderRadius: '12px', overflow: 'hidden' }}>
+                                                        <div style={{ backgroundColor: '#131722', border: '1px solid rgba(168, 85, 247, 0.35)', borderRadius: '12px', overflow: 'hidden', flexShrink: 0 }}>
                                                             <div
                                                                 onClick={() => toggleGroupCollapse('debts')}
                                                                 style={{
@@ -1125,7 +1126,7 @@ const AdminDashboard = () => {
 
                                                     {/* GRUP 5: ÜYELİĞİ YAKINDA BİTECEK ÜYELER (SON 5 GÜN) */}
                                                     {(notifCategory === 'all' || notifCategory === 'expiring') && (
-                                                        <div style={{ backgroundColor: '#131722', border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: '12px', overflow: 'hidden' }}>
+                                                        <div style={{ backgroundColor: '#131722', border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: '12px', overflow: 'hidden', flexShrink: 0 }}>
                                                             <div
                                                                 onClick={() => toggleGroupCollapse('expiring')}
                                                                 style={{
