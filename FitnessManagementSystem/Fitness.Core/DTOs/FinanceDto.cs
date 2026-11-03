@@ -20,6 +20,7 @@ namespace Fitness.Core.DTOs
     {
         public int ProductId { get; set; }
         public int Quantity { get; set; }
+        public decimal? CustomUnitPrice { get; set; }
     }
 
     public class CreateSaleDto
@@ -31,6 +32,25 @@ namespace Fitness.Core.DTOs
         public int? MemberId { get; set; }
         public string? Note { get; set; }
         public List<SaleItemRequestDto> Items { get; set; } = new List<SaleItemRequestDto>();
+    }
+
+    public class BulkIncomeItemDto
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Category { get; set; } = "Spor Üyeliği"; // "Spor Üyeliği", "Açılış Kasası / Devir", "Havale / EFT", "Bar / Mağaza Satışı", "Özel Ders (PT)", "Diğer Gelir"
+        public decimal Amount { get; set; }
+        public string PaymentMethod { get; set; } = "Cash"; // "Cash", "POS", or "Split"
+        public decimal? CashAmount { get; set; }
+        public decimal? PosAmount { get; set; }
+        public DateTime? TransactionDate { get; set; }
+        public string? Description { get; set; }
+    }
+
+    public class CreateBulkIncomeDto
+    {
+        public DateTime? DefaultDate { get; set; }
+        public string? BatchNote { get; set; }
+        public List<BulkIncomeItemDto> Items { get; set; } = new List<BulkIncomeItemDto>();
     }
 
     public class CreateTransferDto

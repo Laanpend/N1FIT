@@ -5,8 +5,19 @@ import {
     ArrowLeft, DollarSign, CreditCard, Banknote, TrendingUp, TrendingDown,
     ShoppingCart, Package, AlertTriangle, CheckCircle2, XCircle, Plus,
     Trash2, Edit, Search, Calendar, FileDown, RefreshCw, Clock, Layers,
-    PlusCircle, MinusCircle, BarChart3, PieChart, Wallet, Receipt
+    PlusCircle, MinusCircle, BarChart3, PieChart, Wallet, Receipt,
+    DownloadCloud, Percent, Tag, ArrowUpRight, Check, Sparkles
 } from 'lucide-react';
+
+const BULK_INCOME_CATEGORIES = [
+    'Spor Üyeliği',
+    'Açılış Kasası / Devir',
+    'Havale / EFT',
+    'Özel Ders (PT)',
+    'Bar / Mağaza Satışı',
+    'Kayıt / Kart Bedeli',
+    'Diğer Gelir'
+];
 
 const EXPENSE_CATEGORIES = [
     'Kira',
@@ -62,7 +73,8 @@ const FinanceManager = () => {
     const [activeTab, setActiveTab] = useState(() => {
         const t = new URLSearchParams(window.location.search).get('tab');
         if (t === 'inventory') return 'products';
-        return ['dashboard', 'pos', 'products', 'expenses', 'approvals', 'cashops', 'ledger'].includes(t) ? t : 'dashboard';
+        if (t === 'bulk') return 'bulk_income';
+        return ['dashboard', 'pos', 'bulk_income', 'products', 'expenses', 'approvals', 'cashops', 'ledger'].includes(t) ? t : 'dashboard';
     });
     const [loading, setLoading] = useState(false);
     const [toast, setToast] = useState(null);
@@ -96,10 +108,29 @@ const FinanceManager = () => {
     const [posCategory, setPosCategory] = useState('Tümü');
     const [cart, setCart] = useState([]);
     const [discountAmount, setDiscountAmount] = useState('');
+    const [priceSurcharge, setPriceSurcharge] = useState('');
+    const [percentDiscountInput, setPercentDiscountInput] = useState('');
     const [posCashInput, setPosCashInput] = useState('');
     const [posCardInput, setPosCardInput] = useState('');
     const [saleNote, setSaleNote] = useState('');
     const [recentSales, setRecentSales] = useState([]);
+
+    // 2.1 Toplu / Ay Başı Gelir Girişi Modülü State
+    const [bulkIncomeList, setBulkIncomeList] = useState([
+        {
+            id: 1,
+            date: new Date().toISOString().split('T')[0],
+            category: 'Spor Üyeliği',
+            title: 'Kasım Ay Başı Spor Üyelikleri Toplamı',
+            amount: '',
+            paymentMethod: 'Cash',
+            cashAmount: '',
+            posAmount: '',
+            description: 'Ay başı devir / başlangıç üyelik gelirleri'
+        }
+    ]);
+    const [bulkBatchNote, setBulkBatchNote] = useState('');
+    const [bulkSaving, setBulkSaving] = useState(false);
 
     // 3. Product CRUD State
     const [editingProduct, setEditingProduct] = useState(null);
@@ -239,6 +270,45 @@ const FinanceManager = () => {
     };
 
     // ==========================================
+    // TOPLU GELİR HESAPLAMALARI
+    // ==========================================
+    const totalBulkAmount = useMemo(() => {
+        return bulkIncomeList.reduce((sum, item) => {
+            const amt = parseFloat(item.amount || 0);
+            const cash = parseFloat(item.cashAmount || 0);
+            const pos = parseFloat(item.posAmount || 0);
+            if (item.paymentMethod === 'Split') {
+                return sum + (cash + pos > 0 ? cash + pos : amt);
+            }
+            return sum + amt;
+        }, 0);
+    }, [bulkIncomeList]);
+
+    const totalBulkCash = useMemo(() => {
+        return bulkIncomeList.reduce((sum, item) => {
+            const amt = parseFloat(item.amount || 0);
+            const cash = parseFloat(item.cashAmount || 0);
+            if (item.paymentMethod === 'Cash') return sum + amt;
+            if (item.paymentMethod === 'Split') return sum + cash;
+            return sum;
+        }, 0);
+    }, [bulkIncomeList]);
+
+    const totalBulkPos = useMemo(() => {
+        return bulkIncomeList.reduce((sum, item) => {
+            const amt = parseFloat(item.amount || 0);
+            const pos = parseFloat(item.posAmount || 0);
+            if (item.paymentMethod === 'POS') return sum + amt;
+            if (item.paymentMethod === 'Split') return sum + pos;
+            return sum;
+        }, 0);
+    }, [bulkIncomeList]);
+
+    const historicalBulkIncomes = useMemo(() => {
+        return transactions.filter(t => t.source === 'BulkIncome' || (t.category && t.category.includes('Açılış')));
+    }, [transactions]);
+
+    // ==========================================
     // POS / HIZLI SATIŞ FONKSİYONLARI
     // ==========================================
     const addToCart = (product) => {
@@ -251,10 +321,12 @@ const FinanceManager = () => {
                         : item
                 );
             }
+            const sPrice = Number(product.sellingPrice || 0);
             return [...prev, {
                 productId: product.id,
                 name: product.name,
-                price: product.sellingPrice,
+                originalPrice: sPrice,
+                price: sPrice,
                 stock: product.stockQuantity,
                 quantity: 1
             }];
@@ -269,25 +341,97 @@ const FinanceManager = () => {
         }).filter(Boolean));
     };
 
+    const updateCartItemPrice = (productId, newPrice) => {
+        const parsed = newPrice === '' ? '' : Math.max(0, parseFloat(newPrice) || 0);
+        setCart(prev => prev.map(item => {
+            if (item.productId !== productId) return item;
+            return {
+                ...item,
+                price: parsed
+            };
+        }));
+        setPosCashInput('');
+        setPosCardInput('');
+    };
+
+    const resetCartItemPrice = (productId) => {
+        setCart(prev => prev.map(item => {
+            if (item.productId !== productId) return item;
+            return {
+                ...item,
+                price: item.originalPrice
+            };
+        }));
+        setPosCashInput('');
+        setPosCardInput('');
+    };
+
     const removeFromCart = (productId) => {
         setCart(prev => prev.filter(item => item.productId !== productId));
     };
 
-    const cartSubTotal = useMemo(() => {
-        return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    // Sepetin standart liste fiyatları alt toplamı
+    const cartOriginalSubTotal = useMemo(() => {
+        return cart.reduce((sum, item) => sum + (Number(item.originalPrice ?? item.price ?? 0) * item.quantity), 0);
     }, [cart]);
 
+    // Sepetteki güncel fiyatlar alt toplamı
+    const cartSubTotal = useMemo(() => {
+        return cart.reduce((sum, item) => sum + (Number(item.price || 0) * item.quantity), 0);
+    }, [cart]);
+
+    // Nihai Net Toplam (İndirim veya Fiyat Artışı / Zam Dahil)
     const cartTotal = useMemo(() => {
         const disc = Math.max(0, parseFloat(discountAmount || 0));
-        return Math.max(0, cartSubTotal - disc);
-    }, [cartSubTotal, discountAmount]);
+        const surcharge = Math.max(0, parseFloat(priceSurcharge || 0));
+        return Math.max(0, Math.round((cartSubTotal - disc + surcharge) * 100) / 100);
+    }, [cartSubTotal, discountAmount, priceSurcharge]);
 
     // POS indirim yardımcı fonksiyonları
     const applyPercentDiscount = (pct) => {
         if (cartSubTotal <= 0) return;
         const disc = Math.round((cartSubTotal * (pct / 100)) * 100) / 100;
         setDiscountAmount(String(disc));
-        const newNet = Math.max(0, cartSubTotal - disc);
+        setPriceSurcharge('');
+        setPercentDiscountInput(String(pct));
+        setPosCashInput('');
+        setPosCardInput('');
+    };
+
+    const applyDirectAmountDiscount = (amount) => {
+        if (cartSubTotal <= 0) return;
+        const disc = Math.min(cartSubTotal, Math.max(0, parseFloat(amount || 0)));
+        setDiscountAmount(String(disc));
+        setPriceSurcharge('');
+        setPercentDiscountInput('');
+        setPosCashInput('');
+        setPosCardInput('');
+    };
+
+    // Kullanıcı toplam tutarı elle değiştirirse (Örn: 120 TL'lik sepeti doğrudan 100 TL veya 140 TL yapma)
+    const handleDirectTotalChange = (val) => {
+        if (val === '') {
+            setDiscountAmount('');
+            setPriceSurcharge('');
+            setPosCashInput('');
+            setPosCardInput('');
+            return;
+        }
+        const target = Math.max(0, parseFloat(val) || 0);
+        if (target < cartSubTotal) {
+            // Otomatik İndirim
+            const diff = Math.round((cartSubTotal - target) * 100) / 100;
+            setDiscountAmount(String(diff));
+            setPriceSurcharge('');
+        } else if (target > cartSubTotal) {
+            // Otomatik Zam
+            const diff = Math.round((target - cartSubTotal) * 100) / 100;
+            setPriceSurcharge(String(diff));
+            setDiscountAmount('');
+        } else {
+            setDiscountAmount('');
+            setPriceSurcharge('');
+        }
         setPosCashInput('');
         setPosCardInput('');
     };
@@ -296,6 +440,8 @@ const FinanceManager = () => {
         if (cartSubTotal <= 10) return;
         const remainder = cartSubTotal % 50 !== 0 ? (cartSubTotal % 10 !== 0 ? cartSubTotal % 10 : cartSubTotal % 50) : 10;
         setDiscountAmount(String(remainder));
+        setPriceSurcharge('');
+        setPercentDiscountInput('');
         setPosCashInput('');
         setPosCardInput('');
     };
@@ -354,15 +500,25 @@ const FinanceManager = () => {
         try {
             setLoading(true);
             const disc = Math.max(0, parseFloat(discountAmount || 0));
+            const surcharge = Math.max(0, parseFloat(priceSurcharge || 0));
             const cashVal = Math.max(0, parseFloat(posCashInput || 0));
             const cardVal = Math.max(0, parseFloat(posCardInput || 0));
+
+            let finalNote = saleNote?.trim() || '';
+            if (surcharge > 0) {
+                finalNote = finalNote ? `${finalNote} [Otomatik Zam: +${surcharge} ₺]` : `[Otomatik Zam: +${surcharge} ₺]`;
+            }
 
             let payload = {
                 paymentMethod,
                 discountAmount: disc,
                 memberId: selectedPosMemberId ? parseInt(selectedPosMemberId, 10) : null,
-                note: saleNote,
-                items: cart.map(c => ({ productId: c.productId, quantity: c.quantity }))
+                note: finalNote,
+                items: cart.map(c => ({
+                    productId: c.productId,
+                    quantity: c.quantity,
+                    customUnitPrice: (c.price !== undefined && Number(c.price) !== Number(c.originalPrice)) ? Number(c.price) : null
+                }))
             };
 
             if (paymentMethod === 'Split') {
@@ -387,6 +543,8 @@ const FinanceManager = () => {
             await api.post('/Finance/sales', payload);
             setCart([]);
             setDiscountAmount('');
+            setPriceSurcharge('');
+            setPercentDiscountInput('');
             setPosCashInput('');
             setPosCardInput('');
             setTenderedCash('');
@@ -405,6 +563,207 @@ const FinanceManager = () => {
             showMessage(err.response?.data?.message || 'Satış kaydedilirken hata oluştu.', 'error');
         } finally {
             setLoading(false);
+        }
+    };
+
+    // ==========================================
+    // TOPLU / AY BAŞI GELİR GİRİŞİ FONKSİYONLARI
+    // ==========================================
+    const addBulkIncomeRow = () => {
+        setBulkIncomeList(prev => [
+            ...prev,
+            {
+                id: Date.now() + Math.random(),
+                date: new Date().toISOString().split('T')[0],
+                category: 'Spor Üyeliği',
+                title: '',
+                amount: '',
+                paymentMethod: 'Cash',
+                cashAmount: '',
+                posAmount: '',
+                description: ''
+            }
+        ]);
+    };
+
+    const removeBulkIncomeRow = (id) => {
+        setBulkIncomeList(prev => {
+            if (prev.length <= 1) {
+                return [{
+                    id: Date.now(),
+                    date: new Date().toISOString().split('T')[0],
+                    category: 'Spor Üyeliği',
+                    title: '',
+                    amount: '',
+                    paymentMethod: 'Cash',
+                    cashAmount: '',
+                    posAmount: '',
+                    description: ''
+                }];
+            }
+            return prev.filter(r => r.id !== id);
+        });
+    };
+
+    const updateBulkIncomeRow = (id, field, value) => {
+        setBulkIncomeList(prev => prev.map(r => {
+            if (r.id !== id) return r;
+            const updated = { ...r, [field]: value };
+            if (field === 'paymentMethod' && value === 'Split') {
+                const totalAmt = parseFloat(updated.amount || 0);
+                if (totalAmt > 0 && !updated.cashAmount && !updated.posAmount) {
+                    const half = Math.round((totalAmt / 2) * 100) / 100;
+                    updated.cashAmount = String(half);
+                    updated.posAmount = String(Math.round((totalAmt - half) * 100) / 100);
+                }
+            }
+            return updated;
+        }));
+    };
+
+    const applyBulkPreset = (presetType) => {
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (presetType === 'opening_package') {
+            setBulkIncomeList([
+                {
+                    id: 1,
+                    date: todayStr,
+                    category: 'Spor Üyeliği',
+                    title: 'Kasım Ay Başı Devreden Üyelik Gelirleri',
+                    amount: '',
+                    paymentMethod: 'Split',
+                    cashAmount: '',
+                    posAmount: '',
+                    description: 'Eski üyelerden bu ayın başına devreden spor üyelikleri toplamı'
+                },
+                {
+                    id: 2,
+                    date: todayStr,
+                    category: 'Açılış Kasası / Devir',
+                    title: 'Ay Başı Açılış Nakit Kasa Bakiyesi',
+                    amount: '',
+                    paymentMethod: 'Cash',
+                    cashAmount: '',
+                    posAmount: '',
+                    description: 'Kasada fiziki olarak devreden nakit açılış parası'
+                },
+                {
+                    id: 3,
+                    date: todayStr,
+                    category: 'Açılış Kasası / Devir',
+                    title: 'Ay Başı Banka / POS Hesap Bakiyesi',
+                    amount: '',
+                    paymentMethod: 'POS',
+                    cashAmount: '',
+                    posAmount: '',
+                    description: 'Banka hesabında devreden POS / kart bakiyesi'
+                }
+            ]);
+            showMessage('Kasım Ay Başı Açılış Şablonu yüklendi. Tutarları girip kaydedebilirsiniz.');
+        } else if (presetType === 'membership_pool') {
+            setBulkIncomeList([
+                {
+                    id: 1,
+                    date: todayStr,
+                    category: 'Spor Üyeliği',
+                    title: 'Toplu Üyelik Tahsilatları [Nakit]',
+                    amount: '',
+                    paymentMethod: 'Cash',
+                    cashAmount: '',
+                    posAmount: '',
+                    description: 'Eski ve güncel üyelerin nakit üyelik gelirleri toplamı'
+                },
+                {
+                    id: 2,
+                    date: todayStr,
+                    category: 'Spor Üyeliği',
+                    title: 'Toplu Üyelik Tahsilatları [Kredi Kartı / POS]',
+                    amount: '',
+                    paymentMethod: 'POS',
+                    cashAmount: '',
+                    posAmount: '',
+                    description: 'Üyeliklerin kredi kartı ve POS çekim toplamı'
+                }
+            ]);
+            showMessage('Toplu Spor Üyelik Devir Şablonu yüklendi.');
+        } else if (presetType === 'eft_transfer') {
+            setBulkIncomeList([
+                {
+                    id: 1,
+                    date: todayStr,
+                    category: 'Havale / EFT',
+                    title: 'Banka Havale / EFT ile Gelen Gelirler',
+                    amount: '',
+                    paymentMethod: 'POS',
+                    cashAmount: '',
+                    posAmount: '',
+                    description: 'Banka IBAN hesabına doğrudan gönderilen üyelik ve diğer gelirler'
+                }
+            ]);
+            showMessage('Havale / EFT Şablonu yüklendi.');
+        }
+    };
+
+    const handleSaveBulkIncome = async (e) => {
+        e?.preventDefault();
+        const validItems = bulkIncomeList.filter(item => {
+            const amt = parseFloat(item.amount || 0);
+            const cash = parseFloat(item.cashAmount || 0);
+            const pos = parseFloat(item.posAmount || 0);
+            return amt > 0 || cash > 0 || pos > 0;
+        });
+
+        if (validItems.length === 0) {
+            showMessage('Lütfen en az bir satır için geçerli bir tutar girin!', 'error');
+            return;
+        }
+
+        try {
+            setBulkSaving(true);
+            const payload = {
+                batchNote: bulkBatchNote || 'Toplu Gelir Girişi',
+                items: validItems.map(item => ({
+                    title: item.title?.trim() || `${item.category} Geliri`,
+                    category: item.category || 'Spor Üyeliği',
+                    amount: parseFloat(item.amount || 0),
+                    paymentMethod: item.paymentMethod || 'Cash',
+                    cashAmount: item.paymentMethod === 'Split' ? parseFloat(item.cashAmount || 0) : null,
+                    posAmount: item.paymentMethod === 'Split' ? parseFloat(item.posAmount || 0) : null,
+                    transactionDate: item.date ? `${item.date}T12:00:00` : new Date().toISOString(),
+                    description: item.description?.trim() || null
+                }))
+            };
+
+            await api.post('/Finance/bulk-income', payload);
+            showMessage(`${validItems.length} adet gelir kalemi başarıyla kasaya ve raporlara işlendi!`);
+            setBulkBatchNote('');
+            setBulkIncomeList([{
+                id: Date.now(),
+                date: new Date().toISOString().split('T')[0],
+                category: 'Spor Üyeliği',
+                title: '',
+                amount: '',
+                paymentMethod: 'Cash',
+                cashAmount: '',
+                posAmount: '',
+                description: ''
+            }]);
+            await refreshAll();
+        } catch (err) {
+            showMessage(err.response?.data?.message || 'Toplu gelir kaydedilirken hata oluştu.', 'error');
+        } finally {
+            setBulkSaving(false);
+        }
+    };
+
+    const handleDeleteTransaction = async (id) => {
+        if (!window.confirm('Bu kasa hareketini silmek istediğinize emin misiniz? İlgili tutar kasadan düşülecektir.')) return;
+        try {
+            await api.delete(`/Finance/transactions/${id}`);
+            showMessage('Kasa hareketi başarıyla silindi.');
+            await refreshAll();
+        } catch (err) {
+            showMessage('Kasa hareketi silinirken hata oluştu.', 'error');
         }
     };
 
@@ -950,7 +1309,7 @@ const FinanceManager = () => {
                 </div>
             )}
 
-            {/* Ana Sekmeler (7 Sekme) */}
+            {/* Ana Sekmeler (8 Sekme) */}
             <div style={styles.tabContainer}>
                 <button
                     onClick={() => setActiveTab('dashboard')}
@@ -963,6 +1322,12 @@ const FinanceManager = () => {
                     style={activeTab === 'pos' ? styles.activeTabBtn : styles.tabBtn}
                 >
                     <ShoppingCart size={17} /> Hızlı Satış (POS)
+                </button>
+                <button
+                    onClick={() => setActiveTab('bulk_income')}
+                    style={activeTab === 'bulk_income' ? styles.activeTabBtn : styles.tabBtn}
+                >
+                    <DownloadCloud size={17} /> Toplu Gelir Girişi
                 </button>
                 <button
                     onClick={() => setActiveTab('products')}
@@ -1002,8 +1367,8 @@ const FinanceManager = () => {
             {/* ========================================================= */}
             {activeTab === 'dashboard' && (
                 <div>
-                    {/* Zaman Aralığı Seçici */}
-                    <div style={styles.filterBar}>
+                    {/* Zaman Aralığı Seçici & Hızlı Toplu Gelir Butonu */}
+                    <div style={{ ...styles.filterBar, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                             <span style={{ color: '#aaa', fontSize: '0.85rem', fontWeight: '700', marginRight: '4px' }}>
                                 <Calendar size={15} style={{ verticalAlign: 'middle', marginRight: '5px' }} />
@@ -1027,6 +1392,26 @@ const FinanceManager = () => {
                                 </button>
                             ))}
                         </div>
+
+                        <button
+                            onClick={() => setActiveTab('bulk_income')}
+                            style={{
+                                backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                                border: '1px solid #10b981',
+                                color: '#10b981',
+                                padding: '8px 16px',
+                                borderRadius: '8px',
+                                fontWeight: '800',
+                                fontSize: '0.86rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '7px'
+                            }}
+                            title="Ay başı açılış gelirlerini ve devreden üyelikleri topluca girin"
+                        >
+                            <DownloadCloud size={16} /> + Toplu / Ay Başı Gelir Girişi
+                        </button>
 
                         {period === 'custom' && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
@@ -1507,100 +1892,280 @@ const FinanceManager = () => {
                                     <div>Sepet boş. Soldaki ürün kartlarına tıklayarak sepete ekleyin.</div>
                                 </div>
                             ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '260px', overflowY: 'auto', marginBottom: '14px' }}>
-                                    {cart.map(item => (
-                                        <div key={item.productId} style={styles.cartItemRow}>
-                                            <div style={{ flex: 1 }}>
-                                                <div style={{ fontWeight: '700', color: '#fff', fontSize: '0.9rem' }}>{item.name}</div>
-                                                <div style={{ fontSize: '0.78rem', color: '#10b981' }}>
-                                                    {formatCurrency(item.price)} x {item.quantity} = <b>{formatCurrency(item.price * item.quantity)}</b>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '290px', overflowY: 'auto', marginBottom: '14px' }}>
+                                    {cart.map(item => {
+                                        const isCustomPrice = item.price !== undefined && Number(item.price) !== Number(item.originalPrice);
+                                        const lineOrigTotal = (item.originalPrice || 0) * item.quantity;
+                                        const lineCurrentTotal = (Number(item.price || 0)) * item.quantity;
+                                        const diff = lineCurrentTotal - lineOrigTotal;
+                                        const isDiscount = diff < 0;
+                                        const isSurcharge = diff > 0;
+                                        const absDiff = Math.abs(diff);
+                                        const pct = item.originalPrice > 0 ? Math.round((absDiff / lineOrigTotal) * 100 * 10) / 10 : 0;
+
+                                        return (
+                                            <div key={item.productId} style={{ ...styles.cartItemRow, flexDirection: 'column', alignItems: 'stretch', gap: '6px' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <div style={{ flex: 1, paddingRight: '8px' }}>
+                                                        <div style={{ fontWeight: '800', color: '#fff', fontSize: '0.92rem' }}>{item.name}</div>
+                                                        <div style={{ fontSize: '0.74rem', color: '#888' }}>
+                                                            Liste Fiyatı: <span style={{ textDecoration: isCustomPrice ? 'line-through' : 'none', color: isCustomPrice ? '#777' : '#aaa' }}>{formatCurrency(item.originalPrice)}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <button onClick={() => updateCartQty(item.productId, -1)} style={styles.qtyBtn}>-</button>
+                                                        <span style={{ fontWeight: '800', minWidth: '22px', textAlign: 'center', color: '#fff' }}>{item.quantity}</span>
+                                                        <button onClick={() => updateCartQty(item.productId, 1)} style={styles.qtyBtn}>+</button>
+                                                        <button onClick={() => removeFromCart(item.productId)} style={{ ...styles.iconBtnDanger, marginLeft: '4px' }} title="Sepetten Kaldır">
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
                                                 </div>
+
+                                                {/* Fiyat Düzenleme ve Otomatik İndirim/Zam Rozeti */}
+                                                <div style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    flexWrap: 'wrap',
+                                                    gap: '8px',
+                                                    padding: '6px 8px',
+                                                    borderRadius: '6px',
+                                                    backgroundColor: '#141414',
+                                                    border: isDiscount ? '1px solid #059669' : isSurcharge ? '1px solid #d97706' : '1px solid #282828'
+                                                }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <span style={{ fontSize: '0.74rem', color: '#aaa', fontWeight: '700' }}>Birim Fiyat:</span>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="0.5"
+                                                            value={item.price}
+                                                            onChange={e => updateCartItemPrice(item.productId, e.target.value)}
+                                                            style={{
+                                                                width: '80px',
+                                                                padding: '3px 8px',
+                                                                fontSize: '0.82rem',
+                                                                fontWeight: '800',
+                                                                backgroundColor: '#0a0a0a',
+                                                                border: isDiscount ? '1px solid #10b981' : isSurcharge ? '1px solid #f59e0b' : '1px solid #444',
+                                                                borderRadius: '4px',
+                                                                color: '#fff'
+                                                            }}
+                                                        />
+                                                        <span style={{ fontSize: '0.78rem', color: '#999' }}>₺</span>
+                                                        {isCustomPrice && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => resetCartItemPrice(item.productId)}
+                                                                style={{
+                                                                    background: 'none',
+                                                                    border: '1px solid #444',
+                                                                    borderRadius: '4px',
+                                                                    color: '#ccc',
+                                                                    padding: '2px 6px',
+                                                                    fontSize: '0.68rem',
+                                                                    cursor: 'pointer'
+                                                                }}
+                                                                title={`Orijinal fiyata dön (${item.originalPrice} ₺)`}
+                                                            >
+                                                                ↺ Sıfırla
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    <div style={{ textAlign: 'right' }}>
+                                                        <div style={{ fontSize: '0.9rem', fontWeight: '900', color: isDiscount ? '#34d399' : isSurcharge ? '#fbbf24' : '#10b981' }}>
+                                                            {formatCurrency(lineCurrentTotal)}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Otomatik İndirim veya Zam Bildirim Rozeti */}
+                                                {isDiscount && (
+                                                    <div style={{
+                                                        fontSize: '0.73rem',
+                                                        color: '#6ee7b7',
+                                                        fontWeight: '800',
+                                                        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                                                        padding: '3px 8px',
+                                                        borderRadius: '4px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '5px'
+                                                    }}>
+                                                        <Tag size={12} />
+                                                        <span>Otomatik İndirim: -{formatCurrency(absDiff)} (%{pct} indirim uygulandı)</span>
+                                                    </div>
+                                                )}
+                                                {isSurcharge && (
+                                                    <div style={{
+                                                        fontSize: '0.73rem',
+                                                        color: '#fcd34d',
+                                                        fontWeight: '800',
+                                                        backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                                                        padding: '3px 8px',
+                                                        borderRadius: '4px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '5px'
+                                                    }}>
+                                                        <ArrowUpRight size={12} />
+                                                        <span>Otomatik Zam / Özel Fiyat: +{formatCurrency(absDiff)} (+%{pct} fiyat artışı)</span>
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                <button onClick={() => updateCartQty(item.productId, -1)} style={styles.qtyBtn}>-</button>
-                                                <span style={{ fontWeight: '800', minWidth: '22px', textAlign: 'center' }}>{item.quantity}</span>
-                                                <button onClick={() => updateCartQty(item.productId, 1)} style={styles.qtyBtn}>+</button>
-                                                <button onClick={() => removeFromCart(item.productId)} style={{ ...styles.iconBtnDanger, marginLeft: '4px' }}>
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
 
-                            {/* Hızlı İndirim ve Kampanya Araçları */}
+                            {/* Hızlı İndirim & Fiyat Düzenleme Araçları */}
                             <div style={{
                                 backgroundColor: '#0e0e0e',
                                 border: '1px solid #262626',
                                 borderRadius: '10px',
-                                padding: '10px 12px',
+                                padding: '12px',
                                 marginBottom: '12px'
                             }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                    <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#f59e0b', letterSpacing: '0.4px' }}>
-                                        🏷️ HIZLI İNDİRİM & ALTERNATİFLER
+                                    <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#f59e0b', letterSpacing: '0.4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                        <Tag size={14} /> İNDİRİM & FİYAT DÜZENLEME SEÇENEKLERİ
                                     </span>
-                                    {parseFloat(discountAmount || 0) > 0 && (
+                                    {(parseFloat(discountAmount || 0) > 0 || parseFloat(priceSurcharge || 0) > 0) && (
                                         <button
                                             type="button"
-                                            onClick={() => { setDiscountAmount(''); setPosCashInput(''); setPosCardInput(''); }}
-                                            style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer' }}
+                                            onClick={() => { setDiscountAmount(''); setPriceSurcharge(''); setPercentDiscountInput(''); setPosCashInput(''); setPosCardInput(''); }}
+                                            style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
                                         >
-                                            İndirimi Kaldır
+                                            Düzenlemeyi Kaldır
                                         </button>
                                     )}
                                 </div>
-                                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
-                                    <button
-                                        type="button"
-                                        disabled={cart.length === 0}
-                                        onClick={() => applyPercentDiscount(10)}
-                                        style={styles.stockQuickBtn}
-                                    >
-                                        %10 İndirim
-                                    </button>
-                                    <button
-                                        type="button"
-                                        disabled={cart.length === 0}
-                                        onClick={() => applyPercentDiscount(20)}
-                                        style={styles.stockQuickBtn}
-                                    >
-                                        %20 İndirim
-                                    </button>
-                                    <button
-                                        type="button"
-                                        disabled={cart.length === 0}
-                                        onClick={() => applyPercentDiscount(50)}
-                                        style={{ ...styles.stockQuickBtn, borderColor: '#f59e0b', color: '#fcd34d' }}
-                                    >
-                                        %50 Yarı Fiyat
-                                    </button>
-                                    <button
-                                        type="button"
-                                        disabled={cart.length === 0}
-                                        onClick={applyRoundDownDiscount}
-                                        style={styles.stockQuickBtn}
-                                        title="Küsuratı silip düz hesaba yuvarlar"
-                                    >
-                                        ✨ Düz Hesap
-                                    </button>
+
+                                {/* Yüzdelik İndirim Butonları & Inputu */}
+                                <div style={{ marginBottom: '10px' }}>
+                                    <div style={{ fontSize: '0.72rem', color: '#aaa', fontWeight: '700', marginBottom: '5px' }}>
+                                        📊 Yüzdelik İndirim Uygula (%):
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                        {[5, 10, 15, 20, 50].map(pct => (
+                                            <button
+                                                key={pct}
+                                                type="button"
+                                                disabled={cart.length === 0}
+                                                onClick={() => applyPercentDiscount(pct)}
+                                                style={{
+                                                    ...styles.stockQuickBtn,
+                                                    borderColor: percentDiscountInput === String(pct) ? '#f59e0b' : '#333',
+                                                    color: percentDiscountInput === String(pct) ? '#fcd34d' : '#ccc'
+                                                }}
+                                            >
+                                                %{pct} {pct === 50 ? 'Yarı Fiyat' : ''}
+                                            </button>
+                                        ))}
+                                        <button
+                                            type="button"
+                                            disabled={cart.length === 0}
+                                            onClick={applyRoundDownDiscount}
+                                            style={styles.stockQuickBtn}
+                                            title="Küsuratı silip düz hesaba yuvarlar"
+                                        >
+                                            ✨ Düz Hesap
+                                        </button>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }}>
+                                            <span style={{ fontSize: '0.75rem', color: '#888' }}>%</span>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                placeholder="Özel %"
+                                                value={percentDiscountInput}
+                                                onChange={e => applyPercentDiscount(e.target.value)}
+                                                style={{ ...styles.input, width: '65px', padding: '4px 6px', fontSize: '0.8rem', textAlign: 'center' }}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <span style={{ fontSize: '0.78rem', color: '#999', whiteSpace: 'nowrap' }}>Özel İndirim (₺):</span>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        step="1"
-                                        placeholder="0"
-                                        value={discountAmount}
-                                        onChange={e => {
-                                            setDiscountAmount(e.target.value);
-                                            setPosCashInput('');
-                                            setPosCardInput('');
-                                        }}
-                                        style={{ ...styles.input, padding: '6px 10px', fontSize: '0.85rem', color: '#f59e0b', fontWeight: '800' }}
-                                    />
+
+                                {/* Direkt Tutar İndirimi Butonları & Inputu */}
+                                <div style={{ marginBottom: '10px', paddingTop: '8px', borderTop: '1px solid #1f1f1f' }}>
+                                    <div style={{ fontSize: '0.72rem', color: '#aaa', fontWeight: '700', marginBottom: '5px' }}>
+                                        💵 Direkt Tutar İndirimi Yap (₺):
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                        {[10, 20, 50, 100].map(amt => (
+                                            <button
+                                                key={amt}
+                                                type="button"
+                                                disabled={cart.length === 0}
+                                                onClick={() => applyDirectAmountDiscount(amt)}
+                                                style={styles.stockQuickBtn}
+                                            >
+                                                -{amt} ₺
+                                            </button>
+                                        ))}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }}>
+                                            <span style={{ fontSize: '0.75rem', color: '#888' }}>₺</span>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="1"
+                                                placeholder="İndirim ₺"
+                                                value={discountAmount}
+                                                onChange={e => applyDirectAmountDiscount(e.target.value)}
+                                                style={{ ...styles.input, width: '90px', padding: '4px 8px', fontSize: '0.8rem', color: '#f59e0b', fontWeight: '800' }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Nihai Sepet Tutarını Elle Değiştirme (Örn: 120 ₺'yi direkt 100 ₺ yapma) */}
+                                <div style={{ paddingTop: '8px', borderTop: '1px solid #1f1f1f' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                        <span style={{ fontSize: '0.73rem', color: '#6ee7b7', fontWeight: '800' }}>
+                                            🎯 Sepet Nihai Tutarını Elle Belirle (Otomatik İndirim/Zam):
+                                        </span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            placeholder={`Örn: ${cartSubTotal > 0 ? (cartSubTotal > 20 ? cartSubTotal - 20 : cartSubTotal) : 100}`}
+                                            value={cartTotal > 0 ? cartTotal : ''}
+                                            onChange={e => handleDirectTotalChange(e.target.value)}
+                                            style={{
+                                                ...styles.input,
+                                                padding: '7px 10px',
+                                                fontSize: '0.88rem',
+                                                color: '#10b981',
+                                                fontWeight: '900',
+                                                flex: 1
+                                            }}
+                                        />
+                                        <span style={{ fontSize: '0.85rem', color: '#aaa', fontWeight: '700' }}>₺</span>
+                                        {(parseFloat(discountAmount || 0) > 0 || parseFloat(priceSurcharge || 0) > 0) && (
+                                            <button
+                                                type="button"
+                                                onClick={() => { setDiscountAmount(''); setPriceSurcharge(''); setPercentDiscountInput(''); setPosCashInput(''); setPosCardInput(''); }}
+                                                style={{ ...styles.stockQuickBtn, color: '#f87171' }}
+                                                title="Varsayılan hesaplanan tutara dön"
+                                            >
+                                                ↺ Sıfırla
+                                            </button>
+                                        )}
+                                    </div>
+                                    {parseFloat(discountAmount || 0) > 0 && (
+                                        <div style={{ fontSize: '0.73rem', color: '#34d399', fontWeight: '800', marginTop: '5px' }}>
+                                            ✓ {formatCurrency(cartSubTotal)} yerine {formatCurrency(cartTotal)} belirlendi (Otomatik İndirim: -{formatCurrency(discountAmount)}).
+                                        </div>
+                                    )}
+                                    {parseFloat(priceSurcharge || 0) > 0 && (
+                                        <div style={{ fontSize: '0.73rem', color: '#fbbf24', fontWeight: '800', marginTop: '5px' }}>
+                                            ✓ {formatCurrency(cartSubTotal)} yerine {formatCurrency(cartTotal)} belirlendi (Otomatik Zam / Ek Tutar: +{formatCurrency(priceSurcharge)}).
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -1669,15 +2234,35 @@ const FinanceManager = () => {
 
                             {/* Toplam Tutar Özeti */}
                             <div style={{ ...styles.cartTotalBox, flexDirection: 'column', alignItems: 'stretch', gap: '6px' }}>
+                                {cartOriginalSubTotal !== cartSubTotal && (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#888' }}>
+                                        <span>Liste Fiyatı Toplamı: {formatCurrency(cartOriginalSubTotal)}</span>
+                                        <span style={{ color: cartSubTotal < cartOriginalSubTotal ? '#34d399' : '#fbbf24', fontWeight: '700' }}>
+                                            {cartSubTotal < cartOriginalSubTotal
+                                                ? `Özel İndirimli Ara Toplam: ${formatCurrency(cartSubTotal)}`
+                                                : `Fiyat Artışlı Ara Toplam: ${formatCurrency(cartSubTotal)}`}
+                                        </span>
+                                    </div>
+                                )}
                                 {parseFloat(discountAmount || 0) > 0 && (
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#999' }}>
                                         <span>Ara Toplam: {formatCurrency(cartSubTotal)}</span>
-                                        <span style={{ color: '#f59e0b', fontWeight: '700' }}>İndirim: -{formatCurrency(discountAmount)}</span>
+                                        <span style={{ color: '#10b981', fontWeight: '800' }}>
+                                            🏷️ Otomatik İndirim: -{formatCurrency(discountAmount)}
+                                        </span>
                                     </div>
                                 )}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ color: '#aaa', fontWeight: '800', fontSize: '0.9rem' }}>NET TOPLAM TUTAR</span>
-                                    <span style={{ fontSize: '1.55rem', fontWeight: '900', color: '#10b981' }}>
+                                {parseFloat(priceSurcharge || 0) > 0 && (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#999' }}>
+                                        <span>Ara Toplam: {formatCurrency(cartSubTotal)}</span>
+                                        <span style={{ color: '#f59e0b', fontWeight: '800' }}>
+                                            📈 Otomatik Zam: +{formatCurrency(priceSurcharge)}
+                                        </span>
+                                    </div>
+                                )}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #333', paddingTop: '8px', marginTop: '4px' }}>
+                                    <span style={{ color: '#fff', fontWeight: '900', fontSize: '0.95rem' }}>NET TOPLAM TUTAR</span>
+                                    <span style={{ fontSize: '1.65rem', fontWeight: '900', color: '#10b981' }}>
                                         {formatCurrency(cartTotal)}
                                     </span>
                                 </div>
@@ -1904,6 +2489,340 @@ const FinanceManager = () => {
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ========================================================= */}
+            {/* SEKME 2.5: TOPLU GELİR & AY BAŞI AÇILIŞ BAKİYESİ GİRİŞİ     */}
+            {/* ========================================================= */}
+            {activeTab === 'bulk_income' && (
+                <div>
+                    {/* Üst Bilgilendirme ve Hızlı Şablonlar Kartı */}
+                    <div style={{
+                        ...styles.card,
+                        background: 'linear-gradient(135deg, rgba(5, 150, 105, 0.12) 0%, rgba(16, 185, 129, 0.04) 100%)',
+                        border: '1px solid #10b981',
+                        marginBottom: '20px'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+                            <div>
+                                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '900', color: '#fff', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <DownloadCloud size={24} color="#10b981" /> Toplu Gelir & Ay Başı Açılış Bakiyesi Girişi
+                                </h3>
+                                <p style={{ margin: '8px 0 0 0', color: '#ccc', fontSize: '0.85rem', maxWidth: '780px', lineHeight: '1.45' }}>
+                                    Eski üyelerden bu aya devreden spor üyelikleri toplamını, ay başı kasa ve POS mevcudunu ya da toplu tahsilatları tek seferde sisteme girin.
+                                    Girilen tutarlar doğrudan resmi <b>Kasa Defteri</b>'ne, <b>Kasa/POS Nakit Dengesi</b>'ne ve <b>Finans Raporları</b>'na anında işlenir.
+                                </p>
+                            </div>
+
+                            {/* Hızlı Şablonlar (Hazır Doldurucular) */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <span style={{ fontSize: '0.74rem', fontWeight: '800', color: '#10b981', letterSpacing: '0.5px' }}>
+                                    ✨ HIZLI DOLDURMA ŞABLONLARI:
+                                </span>
+                                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => applyBulkPreset('opening_package')}
+                                        style={{ ...styles.stockQuickBtn, borderColor: '#10b981', color: '#6ee7b7' }}
+                                        title="Kasım ay başı üyelikler + nakit kasa + POS mevcudu 3 satır açar"
+                                    >
+                                        📋 Ay Başı Açılış Paketi
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => applyBulkPreset('membership_pool')}
+                                        style={styles.stockQuickBtn}
+                                        title="Nakit ve POS üyelik gelirleri 2 satır açar"
+                                    >
+                                        🏃 Toplu Spor Üyelik Devri
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => applyBulkPreset('eft_transfer')}
+                                        style={styles.stockQuickBtn}
+                                        title="Banka Havale / EFT satırı açar"
+                                    >
+                                        🏦 Havale / EFT Havuzu
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Toplu Gelir Giriş Tablosu Kartı */}
+                    <div style={styles.card}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                            <h3 style={styles.cardTitle}>
+                                <Layers size={18} color="#10b981" /> Gelir Kalemleri Listesi ({bulkIncomeList.length} Kalem)
+                            </h3>
+                            <button
+                                type="button"
+                                onClick={addBulkIncomeRow}
+                                style={{ ...styles.primaryBtn, backgroundColor: '#1f2937', borderColor: '#374151', color: '#10b981', fontSize: '0.82rem', padding: '6px 12px' }}
+                            >
+                                <Plus size={15} /> + Yeni Gelir Satırı Ekle
+                            </button>
+                        </div>
+
+                        <div style={{ overflowX: 'auto', marginBottom: '18px' }}>
+                            <table style={styles.table}>
+                                <thead>
+                                    <tr>
+                                        <th style={{ ...styles.th, width: '40px' }}>#</th>
+                                        <th style={{ ...styles.th, width: '135px' }}>Tarih</th>
+                                        <th style={{ ...styles.th, width: '170px' }}>Kategori</th>
+                                        <th style={styles.th}>Gelir Başlığı / Kalem Adı *</th>
+                                        <th style={{ ...styles.th, width: '130px' }}>Tutar (₺) *</th>
+                                        <th style={{ ...styles.th, width: '150px' }}>Kasa / Ödeme</th>
+                                        <th style={styles.th}>Açıklama / Not</th>
+                                        <th style={{ ...styles.th, width: '50px' }}>İşlem</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {bulkIncomeList.map((row, idx) => {
+                                        const isSplit = row.paymentMethod === 'Split';
+                                        return (
+                                            <tr key={row.id}>
+                                                <td style={{ ...styles.td, color: '#888', fontWeight: '800' }}>{idx + 1}</td>
+                                                <td style={styles.td}>
+                                                    <input
+                                                        type="date"
+                                                        value={row.date}
+                                                        onChange={e => updateBulkIncomeRow(row.id, 'date', e.target.value)}
+                                                        style={{ ...styles.input, width: '100%', padding: '6px 8px', fontSize: '0.82rem' }}
+                                                    />
+                                                </td>
+                                                <td style={styles.td}>
+                                                    <select
+                                                        value={row.category}
+                                                        onChange={e => updateBulkIncomeRow(row.id, 'category', e.target.value)}
+                                                        style={{ ...styles.input, width: '100%', padding: '6px 8px', fontSize: '0.82rem' }}
+                                                    >
+                                                        {BULK_INCOME_CATEGORIES.map(cat => (
+                                                            <option key={cat} value={cat}>{cat}</option>
+                                                        ))}
+                                                    </select>
+                                                </td>
+                                                <td style={styles.td}>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Örn: Kasım Ay Başı Spor Üyelikleri Toplamı"
+                                                        value={row.title}
+                                                        onChange={e => updateBulkIncomeRow(row.id, 'title', e.target.value)}
+                                                        style={{ ...styles.input, width: '100%', padding: '6px 10px', fontSize: '0.85rem', fontWeight: '700' }}
+                                                    />
+                                                </td>
+                                                <td style={styles.td}>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        step="1"
+                                                        placeholder="0"
+                                                        value={row.amount}
+                                                        onChange={e => updateBulkIncomeRow(row.id, 'amount', e.target.value)}
+                                                        style={{
+                                                            ...styles.input,
+                                                            width: '100%',
+                                                            padding: '6px 10px',
+                                                            fontSize: '0.9rem',
+                                                            fontWeight: '900',
+                                                            color: '#10b981'
+                                                        }}
+                                                    />
+                                                </td>
+                                                <td style={styles.td}>
+                                                    <select
+                                                        value={row.paymentMethod}
+                                                        onChange={e => updateBulkIncomeRow(row.id, 'paymentMethod', e.target.value)}
+                                                        style={{ ...styles.input, width: '100%', padding: '6px 8px', fontSize: '0.82rem' }}
+                                                    >
+                                                        <option value="Cash">💵 Nakit (Kasa)</option>
+                                                        <option value="POS">💳 POS / Banka</option>
+                                                        <option value="Split">🔀 Parçalı (Nakit + POS)</option>
+                                                    </select>
+                                                    {isSplit && (
+                                                        <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                placeholder="Nakit ₺"
+                                                                value={row.cashAmount}
+                                                                onChange={e => updateBulkIncomeRow(row.id, 'cashAmount', e.target.value)}
+                                                                style={{ ...styles.input, width: '50%', padding: '4px 6px', fontSize: '0.78rem', color: '#10b981' }}
+                                                                title="Nakit Payı"
+                                                            />
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                placeholder="POS ₺"
+                                                                value={row.posAmount}
+                                                                onChange={e => updateBulkIncomeRow(row.id, 'posAmount', e.target.value)}
+                                                                style={{ ...styles.input, width: '50%', padding: '4px 6px', fontSize: '0.78rem', color: '#38bdf8' }}
+                                                                title="POS Payı"
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td style={styles.td}>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="İsteğe bağlı açıklama veya not..."
+                                                        value={row.description}
+                                                        onChange={e => updateBulkIncomeRow(row.id, 'description', e.target.value)}
+                                                        style={{ ...styles.input, width: '100%', padding: '6px 8px', fontSize: '0.82rem' }}
+                                                    />
+                                                </td>
+                                                <td style={styles.td}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeBulkIncomeRow(row.id)}
+                                                        style={styles.iconBtnDanger}
+                                                        title="Bu satırı kaldır"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Canlı Finansal İcmal ve Toplu Kayıt Çubuğu */}
+                        <div style={{
+                            backgroundColor: '#0d0d0d',
+                            border: '1px solid #262626',
+                            borderRadius: '12px',
+                            padding: '16px 20px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: '16px'
+                        }}>
+                            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                <div>
+                                    <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: '700' }}>TOPLAM GİRİLECEK GELİR</div>
+                                    <div style={{ fontSize: '1.45rem', fontWeight: '900', color: '#10b981' }}>
+                                        {formatCurrency(totalBulkAmount)}
+                                    </div>
+                                </div>
+                                <div style={{ borderLeft: '1px solid #262626', paddingLeft: '16px' }}>
+                                    <div style={{ fontSize: '0.72rem', color: '#888', fontWeight: '700' }}>💵 Nakit Kasa Payı:</div>
+                                    <div style={{ fontSize: '1rem', fontWeight: '800', color: '#34d399' }}>
+                                        {formatCurrency(totalBulkCash)}
+                                    </div>
+                                </div>
+                                <div style={{ borderLeft: '1px solid #262626', paddingLeft: '16px' }}>
+                                    <div style={{ fontSize: '0.72rem', color: '#888', fontWeight: '700' }}>💳 POS / Banka Payı:</div>
+                                    <div style={{ fontSize: '1rem', fontWeight: '800', color: '#38bdf8' }}>
+                                        {formatCurrency(totalBulkPos)}
+                                    </div>
+                                </div>
+                                <div style={{ borderLeft: '1px solid #262626', paddingLeft: '16px' }}>
+                                    <div style={{ fontSize: '0.72rem', color: '#888', fontWeight: '700' }}>Doldurulan Satır:</div>
+                                    <div style={{ fontSize: '1rem', fontWeight: '800', color: '#fff' }}>
+                                        {bulkIncomeList.filter(i => parseFloat(i.amount || 0) > 0 || parseFloat(i.cashAmount || 0) > 0 || parseFloat(i.posAmount || 0) > 0).length} / {bulkIncomeList.length} Kalem
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                <input
+                                    type="text"
+                                    placeholder="Toplu işlem genel notu (Opsiyonel)"
+                                    value={bulkBatchNote}
+                                    onChange={e => setBulkBatchNote(e.target.value)}
+                                    style={{ ...styles.input, width: '220px', padding: '9px 12px', fontSize: '0.84rem' }}
+                                />
+                                <button
+                                    type="button"
+                                    disabled={bulkSaving || totalBulkAmount <= 0}
+                                    onClick={handleSaveBulkIncome}
+                                    style={{
+                                        ...styles.primaryBtn,
+                                        backgroundColor: '#059669',
+                                        borderColor: '#10b981',
+                                        padding: '10px 22px',
+                                        fontSize: '0.92rem',
+                                        fontWeight: '900',
+                                        cursor: (bulkSaving || totalBulkAmount <= 0) ? 'not-allowed' : 'pointer',
+                                        opacity: (bulkSaving || totalBulkAmount <= 0) ? 0.5 : 1,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px'
+                                    }}
+                                >
+                                    <DownloadCloud size={17} />
+                                    {bulkSaving ? 'Kaydediliyor...' : 'Toplu Gelirleri Sisteme Kaydet'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Daha Önce Girilmiş Toplu / Ay Başı Gelirleri Geçmişi */}
+                    <div style={{ ...styles.card, marginTop: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+                            <h3 style={styles.cardTitle}>
+                                <Receipt size={18} color="#10b981" /> Sisteme İşlenen Toplu & Açılış Gelirleri Geçmişi ({historicalBulkIncomes.length} Kayıt)
+                            </h3>
+                            <span style={{ fontSize: '0.8rem', color: '#888' }}>
+                                Hatalı girilen bir kayıt varsa yanındaki çöp kutusu ikonuna basarak silebilirsiniz.
+                            </span>
+                        </div>
+
+                        {historicalBulkIncomes.length === 0 ? (
+                            <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>
+                                Henüz toplu gelir veya ay başı açılış kaydı girilmemiş. Yukarıdaki formdan ilk toplu gelirinizi ekleyebilirsiniz.
+                            </div>
+                        ) : (
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={styles.table}>
+                                    <thead>
+                                        <tr>
+                                            <th style={styles.th}>Tarih</th>
+                                            <th style={styles.th}>Kategori</th>
+                                            <th style={styles.th}>Gelir Başlığı</th>
+                                            <th style={styles.th}>Kasa / Ödeme</th>
+                                            <th style={styles.th}>Tutar</th>
+                                            <th style={styles.th}>Açıklama</th>
+                                            <th style={styles.th}>İşlem</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {historicalBulkIncomes.map(tx => (
+                                            <tr key={tx.id}>
+                                                <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>{formatDate(tx.transactionDate)}</td>
+                                                <td style={styles.td}><span style={styles.catBadge}>{tx.category}</span></td>
+                                                <td style={{ ...styles.td, fontWeight: '700', color: '#fff' }}>{tx.title}</td>
+                                                <td style={styles.td}>
+                                                    <span style={tx.paymentMethod === 'POS' ? styles.posBadge : styles.cashBadge}>
+                                                        {tx.paymentMethod === 'POS' ? '💳 POS / Kart' : '💵 Nakit Kasa'}
+                                                    </span>
+                                                </td>
+                                                <td style={{ ...styles.td, fontWeight: '900', color: '#10b981', fontSize: '0.95rem' }}>
+                                                    +{formatCurrency(tx.amount)}
+                                                </td>
+                                                <td style={{ ...styles.td, color: '#888', fontSize: '0.8rem' }}>{tx.description || '-'}</td>
+                                                <td style={styles.td}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDeleteTransaction(tx.id)}
+                                                        style={styles.iconBtnDanger}
+                                                        title="Bu geliri sil ve kasadan düş"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -2771,6 +3690,7 @@ const FinanceManager = () => {
                                     <th style={styles.th}>Kasa / Ödeme</th>
                                     <th style={styles.th}>Tutar</th>
                                     <th style={styles.th}>Açıklama</th>
+                                    <th style={{ ...styles.th, width: '50px' }}>İşlem</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -2819,6 +3739,16 @@ const FinanceManager = () => {
                                                 {isZ ? '' : isInc ? '+' : '-'}{formatCurrency(tx.amount)}
                                             </td>
                                             <td style={{ ...styles.td, color: '#888', fontSize: '0.8rem' }}>{tx.description || '-'}</td>
+                                            <td style={styles.td}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteTransaction(tx.id)}
+                                                    style={styles.iconBtnDanger}
+                                                    title="Bu kasa hareketini sil"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </td>
                                         </tr>
                                     );
                                 })}

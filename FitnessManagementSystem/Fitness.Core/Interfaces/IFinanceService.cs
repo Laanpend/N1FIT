@@ -37,5 +37,7 @@ namespace Fitness.Core.Interfaces
         Task<bool> DeleteTransactionAsync(int id);
         Task<List<FinancialTransaction>> CreateTransferAsync(CreateTransferDto dto);
         Task<FinancialTransaction> CreateZReportAsync(CreateZReportDto dto);
+        Task<List<FinancialTransaction>> CreateBulkIncomeAsync(CreateBulkIncomeDto dto);
+        Task<FinancialTransaction> CreateSingleIncomeAsync(BulkIncomeItemDto dto);
     }
 }

@@ -170,5 +170,22 @@ namespace Fitness.API.Controllers
             var result = await _financeService.CreateZReportAsync(dto);
             return Ok(result);
         }
+
+        // ==========================================
+        // 6. TOPLU GELİR & AY BAŞI AÇILIŞ GELİRİ GİRİŞİ
+        // ==========================================
+        [HttpPost("bulk-income")]
+        public async Task<IActionResult> CreateBulkIncome([FromBody] CreateBulkIncomeDto dto)
+        {
+            var result = await _financeService.CreateBulkIncomeAsync(dto);
+            return Ok(result);
+        }
+
+        [HttpPost("incomes")]
+        public async Task<IActionResult> CreateSingleIncome([FromBody] BulkIncomeItemDto dto)
+        {
+            var result = await _financeService.CreateSingleIncomeAsync(dto);
+            return Ok(result);
+        }
     }
 }

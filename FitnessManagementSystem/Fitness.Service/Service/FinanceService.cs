@@ -147,7 +147,11 @@ namespace Fitness.Service.Service
                 if (product == null)
                     throw new KeyNotFoundException($"ID: {reqItem.ProductId} olan ürün bulunamadı.");
 
-                decimal lineTotal = product.SellingPrice * reqItem.Quantity;
+                decimal unitPrice = (reqItem.CustomUnitPrice.HasValue && reqItem.CustomUnitPrice.Value >= 0)
+                    ? reqItem.CustomUnitPrice.Value
+                    : product.SellingPrice;
+
+                decimal lineTotal = unitPrice * reqItem.Quantity;
                 decimal lineCost = product.BuyingPrice * reqItem.Quantity;
 
                 sale.Items.Add(new SaleItem
@@ -156,13 +160,20 @@ namespace Fitness.Service.Service
                     ProductName = product.Name,
                     Quantity = reqItem.Quantity,
                     UnitBuyingPrice = product.BuyingPrice,
-                    UnitPrice = product.SellingPrice,
+                    UnitPrice = unitPrice,
                     TotalPrice = lineTotal
                 });
 
                 totalAmount += lineTotal;
                 totalCost += lineCost;
-                summaryNames.Add($"{reqItem.Quantity}x {product.Name}");
+                if (unitPrice != product.SellingPrice)
+                {
+                    summaryNames.Add($"{reqItem.Quantity}x {product.Name} (Özel: {unitPrice:0.##} ₺)");
+                }
+                else
+                {
+                    summaryNames.Add($"{reqItem.Quantity}x {product.Name}");
+                }
 
                 // Stok düşümü
                 product.StockQuantity = Math.Max(0, product.StockQuantity - reqItem.Quantity);
@@ -1197,6 +1208,119 @@ namespace Fitness.Service.Service
             await _context.FinancialTransactions.AddAsync(zReportRecord);
             await _context.SaveChangesAsync();
             return zReportRecord;
+        }
+
+        public async Task<List<FinancialTransaction>> CreateBulkIncomeAsync(CreateBulkIncomeDto dto)
+        {
+            if (dto.Items == null || !dto.Items.Any())
+                throw new ArgumentException("En az bir gelir kalemi girilmelidir.");
+
+            var createdList = new List<FinancialTransaction>();
+            var defaultDate = dto.DefaultDate ?? DateTime.Now;
+
+            foreach (var item in dto.Items)
+            {
+                if (item.Amount <= 0 && (!item.CashAmount.HasValue || item.CashAmount <= 0) && (!item.PosAmount.HasValue || item.PosAmount <= 0))
+                    continue;
+
+                var txDate = item.TransactionDate ?? defaultDate;
+                var category = string.IsNullOrWhiteSpace(item.Category) ? "Spor Üyeliği" : item.Category.Trim();
+                var title = string.IsNullOrWhiteSpace(item.Title) ? "Toplu Gelir Girişi" : item.Title.Trim();
+                var desc = item.Description?.Trim();
+                if (!string.IsNullOrWhiteSpace(dto.BatchNote))
+                {
+                    desc = string.IsNullOrWhiteSpace(desc) ? dto.BatchNote : $"{desc} ({dto.BatchNote})";
+                }
+
+                var paymentMethod = (item.PaymentMethod ?? "Cash").Trim();
+                decimal cashAmt = Math.Max(0, item.CashAmount ?? 0);
+                decimal posAmt = Math.Max(0, item.PosAmount ?? 0);
+                bool isSplit = string.Equals(paymentMethod, "Split", StringComparison.OrdinalIgnoreCase)
+                               || (cashAmt > 0 && posAmt > 0);
+
+                if (isSplit)
+                {
+                    decimal totalSplit = cashAmt + posAmt;
+                    if (totalSplit <= 0 && item.Amount > 0)
+                    {
+                        cashAmt = Math.Round(item.Amount / 2, 2);
+                        posAmt = item.Amount - cashAmt;
+                    }
+
+                    if (cashAmt > 0)
+                    {
+                        var txCash = new FinancialTransaction
+                        {
+                            TransactionType = "Income",
+                            Source = "BulkIncome",
+                            Category = category,
+                            Title = $"{title} [Nakit Payı]",
+                            Amount = cashAmt,
+                            PaymentMethod = "Cash",
+                            TransactionDate = txDate,
+                            Description = string.IsNullOrWhiteSpace(desc) 
+                                ? $"Toplu Gelir Parçalı Ödeme (Nakit: {cashAmt:0.##} ₺ / POS: {posAmt:0.##} ₺)" 
+                                : $"{desc} - Parçalı Ödeme (Nakit: {cashAmt:0.##} ₺ / POS: {posAmt:0.##} ₺)"
+                        };
+                        createdList.Add(txCash);
+                    }
+
+                    if (posAmt > 0)
+                    {
+                        var txPos = new FinancialTransaction
+                        {
+                            TransactionType = "Income",
+                            Source = "BulkIncome",
+                            Category = category,
+                            Title = $"{title} [POS Payı]",
+                            Amount = posAmt,
+                            PaymentMethod = "POS",
+                            TransactionDate = txDate,
+                            Description = string.IsNullOrWhiteSpace(desc) 
+                                ? $"Toplu Gelir Parçalı Ödeme (Nakit: {cashAmt:0.##} ₺ / POS: {posAmt:0.##} ₺)" 
+                                : $"{desc} - Parçalı Ödeme (Nakit: {cashAmt:0.##} ₺ / POS: {posAmt:0.##} ₺)"
+                        };
+                        createdList.Add(txPos);
+                    }
+                }
+                else
+                {
+                    var singleMethod = string.Equals(paymentMethod, "POS", StringComparison.OrdinalIgnoreCase) ? "POS" : "Cash";
+                    decimal amount = item.Amount > 0 ? item.Amount : (singleMethod == "POS" ? posAmt : cashAmt);
+                    if (amount <= 0) continue;
+
+                    var tx = new FinancialTransaction
+                    {
+                        TransactionType = "Income",
+                        Source = "BulkIncome",
+                        Category = category,
+                        Title = title,
+                        Amount = amount,
+                        PaymentMethod = singleMethod,
+                        TransactionDate = txDate,
+                        Description = desc
+                    };
+                    createdList.Add(tx);
+                }
+            }
+
+            if (!createdList.Any())
+                throw new ArgumentException("Kaydedilecek geçerli bir gelir tutarı bulunamadı.");
+
+            await _context.FinancialTransactions.AddRangeAsync(createdList);
+            await _context.SaveChangesAsync();
+            return createdList;
+        }
+
+        public async Task<FinancialTransaction> CreateSingleIncomeAsync(BulkIncomeItemDto dto)
+        {
+            var bulkDto = new CreateBulkIncomeDto
+            {
+                DefaultDate = dto.TransactionDate ?? DateTime.Now,
+                Items = new List<BulkIncomeItemDto> { dto }
+            };
+            var list = await CreateBulkIncomeAsync(bulkDto);
+            return list.First();
         }
 
         private static string NormalizePaymentMethod(string? method)
