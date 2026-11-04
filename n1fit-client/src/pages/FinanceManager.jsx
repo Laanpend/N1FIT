@@ -3875,7 +3875,7 @@ const FinanceManager = () => {
             {/* ========================================================= */}
             {activeTab === 'ledger' && (
                 <div style={styles.card}>
-                    {/* Resmi Mali Kayıt ve Denetim Güvencesi */}
+                    {/* Kasa Defteri Kalıcı Arşiv Bilgilendirmesi */}
                     <div style={{
                         backgroundColor: 'rgba(59, 130, 246, 0.08)',
                         border: '1px solid rgba(59, 130, 246, 0.25)',
@@ -3888,9 +3888,9 @@ const FinanceManager = () => {
                         fontSize: '0.82rem',
                         color: '#93c5fd'
                     }}>
-                        <Lock size={18} color="#60a5fa" style={{ flexShrink: 0 }} />
+                        <Clock size={18} color="#60a5fa" style={{ flexShrink: 0 }} />
                         <div>
-                            <strong>Resmi Mali Kayıt & Denetim Güvencesi:</strong> Kasa defterine işlenen tüm gelir, gider, virman ve POS hareketleri yasal muhasebe bütünlüğü ve denetim güvenliği gereğince silinemez. Tüm kayıtlar kalıcıdır.
+                            <strong>Kalıcı Kasa Defteri Arşivi:</strong> Tüm geçmiş aylara ve yıllara ait kasa hareketleri kalıcı olarak saklanır, ay değişimlerinde kayıtlar kaybolmaz. Hatalı veya mükerrer girilen bir işlem varsa silme butonuyla iptal edebilirsiniz.
                         </div>
                     </div>
 
@@ -4046,7 +4046,7 @@ const FinanceManager = () => {
                                     <th style={styles.th}>Kasa / Ödeme</th>
                                     <th style={styles.th}>Tutar</th>
                                     <th style={styles.th}>Açıklama</th>
-                                    <th style={{ ...styles.th, width: '90px' }}>Kayıt Durumu</th>
+                                    <th style={{ ...styles.th, width: '60px' }}>İşlem</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -4111,23 +4111,14 @@ const FinanceManager = () => {
                                             </td>
                                             <td style={{ ...styles.td, color: '#888', fontSize: '0.8rem' }}>{tx.description || '-'}</td>
                                             <td style={styles.td}>
-                                                <span
-                                                    style={{
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        gap: '4px',
-                                                        padding: '3px 8px',
-                                                        borderRadius: '5px',
-                                                        backgroundColor: '#161616',
-                                                        border: '1px solid #262626',
-                                                        color: '#9ca3af',
-                                                        fontSize: '0.72rem',
-                                                        fontWeight: '700'
-                                                    }}
-                                                    title="Resmi Kasa Kaydı - Mali denetim ve defter bütünlüğü gereğince silinemez."
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteTransaction(tx.id)}
+                                                    style={styles.iconBtnDanger}
+                                                    title="Bu kasa hareketini sil (Hatalı giriş düzeltme)"
                                                 >
-                                                    <Lock size={12} color="#6b7280" /> Kalıcı
-                                                </span>
+                                                    <Trash2 size={14} />
+                                                </button>
                                             </td>
                                         </tr>
                                     );
