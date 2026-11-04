@@ -294,6 +294,37 @@ using (var scope = app.Services.CreateScope())
                     [ReferenceId] int NULL
                 );
             END
+
+            -- POS ile yapılmış spor üyeliklerinin açıklamalarını %20 KDV ve Net tutar bilgisiyle güvenli güncelle
+            UPDATE FinancialTransactions
+            SET Description = 
+                CASE 
+                    WHEN Description IS NULL OR LTRIM(RTRIM(Description)) = '' 
+                        THEN '[KDV %20: -' + CAST(ROUND(Amount * 0.20, 2) AS NVARCHAR(50)) + ' ₺ | Net: ' + CAST(ROUND(Amount * 0.80, 2) AS NVARCHAR(50)) + ' ₺]'
+                    WHEN Description NOT LIKE '%KDV %20%' 
+                        THEN LTRIM(RTRIM(Description)) + ' [KDV %20: -' + CAST(ROUND(Amount * 0.20, 2) AS NVARCHAR(50)) + ' ₺ | Net: ' + CAST(ROUND(Amount * 0.80, 2) AS NVARCHAR(50)) + ' ₺]'
+                    ELSE Description
+                END
+            WHERE PaymentMethod = 'POS'
+              AND (
+                  Source = 'Membership'
+                  OR Category LIKE '%Üyelik%' 
+                  OR Category LIKE '%Spor%' 
+                  OR Title LIKE '%Üyelik%' 
+                  OR Title LIKE '%Paket%'
+              );
+
+            UPDATE PendingMembershipPayments
+            SET Note = 
+                CASE 
+                    WHEN Note IS NULL OR LTRIM(RTRIM(Note)) = '' 
+                        THEN '[KDV %20: -' + CAST(ROUND(Amount * 0.20, 2) AS NVARCHAR(50)) + ' ₺ | Net: ' + CAST(ROUND(Amount * 0.80, 2) AS NVARCHAR(50)) + ' ₺]'
+                    WHEN Note NOT LIKE '%KDV %20%' 
+                        THEN LTRIM(RTRIM(Note)) + ' [KDV %20: -' + CAST(ROUND(Amount * 0.20, 2) AS NVARCHAR(50)) + ' ₺ | Net: ' + CAST(ROUND(Amount * 0.80, 2) AS NVARCHAR(50)) + ' ₺]'
+                    ELSE Note
+                END
+            WHERE (ConfirmedPaymentMethod = 'POS' OR ConfirmedPaymentMethod LIKE '%POS%')
+              AND Status = 'Approved';
         ");
 
         var foodService = scope.ServiceProvider.GetRequiredService<IFoodService>();
