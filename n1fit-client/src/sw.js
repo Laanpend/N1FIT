@@ -66,8 +66,8 @@ self.addEventListener('push', function (event) {
 
     const options = {
       body: data.message || 'Yeni bir bildiriminiz var.',
-      icon: '/pwa-192x192.png',
-      badge: '/pwa-192x192.png',
+      icon: data.icon || '/pwa-192x192.png',
+      badge: data.badge || '/pwa-badge-96x96.png',
       tag: data.tag || 'n1fit-reminder',
       renotify: true,
       vibrate: [200, 100, 200, 100, 200],
