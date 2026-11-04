@@ -1208,6 +1208,7 @@ const FinanceManager = () => {
             totalExpense: totalExp,
             posGross,
             posVat,
+            posNet: posGross - posVat,
             netProfit: totalInc - totalExp - posVat,
             count: filteredTransactions.length
         };
@@ -1526,7 +1527,7 @@ const FinanceManager = () => {
                         )}
                     </div>
 
-                    {/* 6 Ana KPI Kartı (Ciro, POS %20 KDV, Gider, Net Kâr ve Kasa Bakiyeleri) */}
+                    {/* 5 Ana KPI Kartı (Ciro, Gider, Net Kâr, Fiziki Nakit Kasa ve POS Banka Kasası (Net)) */}
                     <div style={styles.kpiGrid}>
                         {/* 1. TOPLAM CİRO */}
                         <div style={{ ...styles.kpiCard, borderLeft: '4px solid #10b981' }}>
@@ -1542,21 +1543,7 @@ const FinanceManager = () => {
                             </div>
                         </div>
 
-                        {/* 2. POS ÜYELİK %20 KDV KESİNTİSİ */}
-                        <div style={{ ...styles.kpiCard, borderLeft: '4px solid #f59e0b' }}>
-                            <div style={styles.kpiHeader}>
-                                <span style={styles.kpiLabel}>POS ÜYELİK KDV (%20)</span>
-                                <Percent size={20} color="#f59e0b" />
-                            </div>
-                            <div style={{ ...styles.kpiValue, color: '#f59e0b' }}>
-                                -{formatCurrency(dashboard.posMembershipVatDeduction || 0)}
-                            </div>
-                            <div style={styles.kpiSub}>
-                                POS Brüt: <b>{formatCurrency(dashboard.posMembershipGrossIncome || 0)}</b> ➔ Net: <b style={{ color: '#10b981' }}>{formatCurrency(dashboard.posMembershipNetIncome || 0)}</b>
-                            </div>
-                        </div>
-
-                        {/* 3. TOPLAM GİDER */}
+                        {/* 2. TOPLAM GİDER */}
                         <div style={{ ...styles.kpiCard, borderLeft: '4px solid #ef4444' }}>
                             <div style={styles.kpiHeader}>
                                 <span style={styles.kpiLabel}>TOPLAM GİDER</span>
@@ -1570,7 +1557,7 @@ const FinanceManager = () => {
                             </div>
                         </div>
 
-                        {/* 4. NET KÂR (CİRO - GİDERLER - POS %20 KDV) */}
+                        {/* 3. NET KÂR (CİRO - GİDERLER - POS %20 KDV) */}
                         <div style={{ ...styles.kpiCard, borderLeft: '4px solid #38bdf8' }}>
                             <div style={styles.kpiHeader}>
                                 <span style={styles.kpiLabel}>NET KÂR (GERÇEK KAZANÇ)</span>
@@ -1587,7 +1574,7 @@ const FinanceManager = () => {
                             </div>
                         </div>
 
-                        {/* 5. FİZİKİ NAKİT KASA */}
+                        {/* 4. FİZİKİ NAKİT KASA */}
                         <div style={{ ...styles.kpiCard, borderLeft: '4px solid #22c55e' }}>
                             <div style={styles.kpiHeader}>
                                 <span style={styles.kpiLabel}>💵 FİZİKİ NAKİT KASA</span>
@@ -1601,17 +1588,17 @@ const FinanceManager = () => {
                             </div>
                         </div>
 
-                        {/* 6. POS / BANKA KASASI */}
+                        {/* 5. POS / BANKA KASASI (NET) */}
                         <div style={{ ...styles.kpiCard, borderLeft: '4px solid #3b82f6' }}>
                             <div style={styles.kpiHeader}>
-                                <span style={styles.kpiLabel}>💳 POS / BANKA KASASI</span>
+                                <span style={styles.kpiLabel}>💳 POS / BANKA KASASI (NET)</span>
                                 <CreditCard size={20} color="#3b82f6" />
                             </div>
                             <div style={{ ...styles.kpiValue, color: '#3b82f6' }}>
-                                {formatCurrency(dashboard.posBalance)}
+                                {formatCurrency(dashboard.posMembershipNetIncome || Math.max(0, (dashboard.posBalance || 0) - (dashboard.posMembershipVatDeduction || 0)))}
                             </div>
                             <div style={styles.kpiSub}>
-                                POS Çekim: +{formatCurrency(dashboard.posIncome)} | Banka Gider: -{formatCurrency(dashboard.posExpense)}
+                                Brüt: <b>{formatCurrency(dashboard.posMembershipGrossIncome || dashboard.posIncome || 0)}</b> | KDV (%20): <b style={{ color: '#f59e0b' }}>-{formatCurrency(dashboard.posMembershipVatDeduction || 0)}</b>
                             </div>
                         </div>
                     </div>
@@ -3663,9 +3650,12 @@ const FinanceManager = () => {
                                     </div>
                                 </div>
                                 <div style={{ backgroundColor: '#161616', padding: '12px', borderRadius: '10px', border: '1px solid #262626' }}>
-                                    <div style={{ fontSize: '0.73rem', color: '#888', fontWeight: '700' }}>💳 SİSTEMDEKİ POS / BANKA</div>
+                                    <div style={{ fontSize: '0.73rem', color: '#888', fontWeight: '700' }}>💳 SİSTEMDEKİ POS / BANKA (NET)</div>
                                     <div style={{ fontSize: '1.3rem', fontWeight: '900', color: '#3b82f6', marginTop: '4px' }}>
-                                        {formatCurrency(dashboard.posBalance)}
+                                        {formatCurrency(dashboard.posMembershipNetIncome || Math.max(0, (dashboard.posBalance || 0) - (dashboard.posMembershipVatDeduction || 0)))}
+                                    </div>
+                                    <div style={{ fontSize: '0.7rem', color: '#888', marginTop: '2px' }}>
+                                        Brüt: {formatCurrency(dashboard.posMembershipGrossIncome || dashboard.posIncome || 0)} | KDV: -{formatCurrency(dashboard.posMembershipVatDeduction || 0)}
                                     </div>
                                 </div>
                             </div>
@@ -3988,11 +3978,13 @@ const FinanceManager = () => {
                             </div>
                         </div>
                         <div style={{ backgroundColor: '#111', border: '1px solid #222', borderRadius: '8px', padding: '12px' }}>
-                            <div style={{ fontSize: '0.72rem', color: '#888', fontWeight: '700' }}>POS ÜYELİK %20 KDV KESİNTİSİ</div>
-                            <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#f59e0b', marginTop: '4px' }}>
-                                -{formatCurrency(ledgerStats.posVat)}
+                            <div style={{ fontSize: '0.72rem', color: '#3b82f6', fontWeight: '700' }}>💳 SEÇİLİ DÖNEM POS / BANKA (NET)</div>
+                            <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#3b82f6', marginTop: '4px' }}>
+                                {formatCurrency(ledgerStats.posNet)}
                             </div>
-                            <div style={{ fontSize: '0.7rem', color: '#777', marginTop: '2px' }}>POS Üyelik: {formatCurrency(ledgerStats.posGross)}</div>
+                            <div style={{ fontSize: '0.7rem', color: '#888', marginTop: '2px' }}>
+                                Brüt: <b>{formatCurrency(ledgerStats.posGross)}</b> | KDV (%20): <b style={{ color: '#f59e0b' }}>-{formatCurrency(ledgerStats.posVat)}</b>
+                            </div>
                         </div>
                         <div style={{ backgroundColor: '#111', border: '1px solid rgba(16, 185, 129, 0.4)', borderRadius: '8px', padding: '12px' }}>
                             <div style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: '800' }}>SEÇİLİ DÖNEM NET KÂR</div>
@@ -4091,21 +4083,30 @@ const FinanceManager = () => {
                                             <td style={{ ...styles.td, fontWeight: '700', color: '#fff' }}>{tx.title}</td>
                                             <td style={styles.td}>
                                                 <span style={tx.paymentMethod === 'POS' ? styles.posBadge : styles.cashBadge}>
-                                                    {tx.paymentMethod === 'POS' ? '💳 POS / Kart' : '💵 Nakit'}
+                                                    {tx.paymentMethod === 'POS' ? '💳 POS / Kart (Net)' : '💵 Nakit'}
                                                 </span>
                                             </td>
                                             <td style={{ ...styles.td }}>
-                                                <div style={{
-                                                    fontWeight: '900',
-                                                    fontSize: '0.95rem',
-                                                    color: isZ ? '#fcd34d' : isInc ? '#10b981' : '#ef4444'
-                                                }}>
-                                                    {isZ ? '' : isInc ? '+' : '-'}{formatCurrency(tx.amount)}
-                                                </div>
-                                                {isMembershipPos && (
-                                                    <div style={{ fontSize: '0.7rem', marginTop: '3px', lineHeight: '1.3' }}>
-                                                        <div style={{ color: '#f59e0b', fontWeight: '600' }}>KDV (%20): -{formatCurrency(posVatAmount)}</div>
-                                                        <div style={{ color: '#34d399', fontWeight: '800' }}>Net: {formatCurrency(posNetAmount)}</div>
+                                                {isMembershipPos ? (
+                                                    <div>
+                                                        <div style={{
+                                                            fontWeight: '900',
+                                                            fontSize: '0.95rem',
+                                                            color: '#34d399'
+                                                        }}>
+                                                            +{formatCurrency(posNetAmount)}
+                                                        </div>
+                                                        <div style={{ fontSize: '0.7rem', marginTop: '2px', color: '#888', lineHeight: '1.3' }}>
+                                                            Brüt: <span style={{ color: '#bbb' }}>{formatCurrency(tx.amount)}</span> | KDV (%20): <span style={{ color: '#f59e0b' }}>-{formatCurrency(posVatAmount)}</span>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div style={{
+                                                        fontWeight: '900',
+                                                        fontSize: '0.95rem',
+                                                        color: isZ ? '#fcd34d' : isInc ? '#10b981' : '#ef4444'
+                                                    }}>
+                                                        {isZ ? '' : isInc ? '+' : '-'}{formatCurrency(tx.amount)}
                                                     </div>
                                                 )}
                                             </td>
