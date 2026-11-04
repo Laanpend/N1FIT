@@ -93,9 +93,10 @@ namespace Fitness.Core.DTOs
     {
         public string Date { get; set; } = string.Empty;
         public string Label { get; set; } = string.Empty;
-        public decimal Income { get; set; }
-        public decimal Expense { get; set; }
-        public decimal Net { get; set; }
+        public decimal Income { get; set; } // Ciro (Brüt Gelir)
+        public decimal Expense { get; set; } // Gider
+        public decimal PosMembershipVat { get; set; } // POS Üyelik %20 KDV Kesintisi
+        public decimal Net { get; set; } // Net Kâr = Income - Expense - PosMembershipVat
     }
 
     public class CategoryBreakdownDto
@@ -103,6 +104,22 @@ namespace Fitness.Core.DTOs
         public string Category { get; set; } = string.Empty;
         public decimal Amount { get; set; }
         public double Percentage { get; set; }
+    }
+
+    public class TopPackageDto
+    {
+        public int PackageId { get; set; }
+        public string PackageName { get; set; } = string.Empty;
+        public decimal Price { get; set; }
+        public int DurationMonths { get; set; }
+        public int TotalSalesCount { get; set; } // Kaç kişi bu paketi aldı
+        public decimal TotalRevenue { get; set; } // Toplam Ciro / Brüt Hasılat
+        public decimal CashRevenue { get; set; } // Nakit Tahsilat
+        public decimal PosRevenue { get; set; } // POS Tahsilat
+        public decimal PosVatDeduction { get; set; } // POS için %20 KDV Kesintisi
+        public decimal NetProfit { get; set; } // Net Kâr (Ciro - POS KDV Kesintisi)
+        public double SalesPercentage { get; set; } // Satış Adedi Payı (%)
+        public double RevenuePercentage { get; set; } // Ciro Payı (%)
     }
 
     public class TopProductDto
@@ -121,9 +138,15 @@ namespace Fitness.Core.DTOs
     {
         public string StartDate { get; set; } = string.Empty;
         public string EndDate { get; set; } = string.Empty;
-        public decimal TotalIncome { get; set; }
+        public decimal TotalIncome { get; set; } // Toplam Ciro / Brüt Hasılat (POS Üyelikleri 1300 TL gibi tam brüt haliyle)
+        public decimal TotalTurnover { get; set; } // Eşdeğer Ciro
         public decimal TotalExpense { get; set; }
-        public decimal NetProfit { get; set; }
+        public decimal NetProfit { get; set; } // Net Kâr (Ciro - Giderler - POS Üyelik %20 KDV Kesintisi)
+
+        // POS Spor Üyelikleri KDV & Net Ayrımı
+        public decimal PosMembershipGrossIncome { get; set; } // POS Üyelik Brüt Tutarı (örn. 1300 TL)
+        public decimal PosMembershipVatDeduction { get; set; } // %20 KDV Kesintisi (örn. 260 TL)
+        public decimal PosMembershipNetIncome { get; set; } // KDV Düşülmüş Net Kâr Tutarı (örn. 1040 TL)
 
         public decimal CashIncome { get; set; }
         public decimal CashExpense { get; set; }
@@ -148,5 +171,7 @@ namespace Fitness.Core.DTOs
         public List<CategoryBreakdownDto> PackageRevenueBreakdown { get; set; } = new List<CategoryBreakdownDto>();
         public List<TopProductDto> TopSellingProducts { get; set; } = new List<TopProductDto>();
         public List<TopProductDto> AllProductsDemand { get; set; } = new List<TopProductDto>();
+        public List<TopPackageDto> TopSellingPackages { get; set; } = new List<TopPackageDto>();
+        public List<TopPackageDto> AllPackagesDemand { get; set; } = new List<TopPackageDto>();
     }
 }

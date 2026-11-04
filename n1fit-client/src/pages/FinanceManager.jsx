@@ -6,7 +6,7 @@ import {
     ShoppingCart, Package, AlertTriangle, CheckCircle2, XCircle, Plus,
     Trash2, Edit, Search, Calendar, FileDown, RefreshCw, Clock, Layers,
     PlusCircle, MinusCircle, BarChart3, PieChart, Wallet, Receipt,
-    DownloadCloud, Percent, Tag, ArrowUpRight, Check, Sparkles
+    DownloadCloud, Percent, Tag, ArrowUpRight, Check, Sparkles, Lock, Award, Filter
 } from 'lucide-react';
 
 const BULK_INCOME_CATEGORIES = [
@@ -88,15 +88,18 @@ const FinanceManager = () => {
     });
     const [customEnd, setCustomEnd] = useState(() => new Date().toISOString().split('T')[0]);
     const [dashboard, setDashboard] = useState({
-        totalIncome: 0, totalExpense: 0, netProfit: 0,
+        totalIncome: 0, totalTurnover: 0, totalExpense: 0, netProfit: 0,
+        posMembershipGrossIncome: 0, posMembershipVatDeduction: 0, posMembershipNetIncome: 0,
         cashIncome: 0, cashExpense: 0, cashBalance: 0,
         posIncome: 0, posExpense: 0, posBalance: 0,
         membershipIncome: 0, storeSaleIncome: 0, storeSaleGrossProfit: 0, totalSoldProductUnits: 0,
         pendingApprovalsCount: 0, pendingApprovalsAmount: 0, lowStockProductsCount: 0,
         dailyTrend: [], incomeByCategory: [], expenseByCategory: [],
-        packageRevenueBreakdown: [], topSellingProducts: [], allProductsDemand: []
+        packageRevenueBreakdown: [], topSellingProducts: [], allProductsDemand: [],
+        topSellingPackages: [], allPackagesDemand: []
     });
     const [demandChartMode, setDemandChartMode] = useState('quantity'); // 'quantity' | 'revenue'
+    const [packageDemandMode, setPackageDemandMode] = useState('count'); // 'count' | 'revenue'
 
     // 2. Products & POS State
     const [products, setProducts] = useState([]);
@@ -157,6 +160,10 @@ const FinanceManager = () => {
     const [txTypeFilter, setTxTypeFilter] = useState('All');
     const [txMethodFilter, setTxMethodFilter] = useState('All');
     const [txSearch, setTxSearch] = useState('');
+    const [txDateRangeMode, setTxDateRangeMode] = useState('all'); // 'all', 'today', 'yesterday', '7d', 'this_month', 'last_month', 'single_date', 'custom'
+    const [txCustomDate, setTxCustomDate] = useState('');
+    const [txStartDate, setTxStartDate] = useState('');
+    const [txEndDate, setTxEndDate] = useState('');
 
     // 7. Kasa Virman & Gün Sonu Z-Raporu State
     const [transferForm, setTransferForm] = useState({
@@ -1060,16 +1067,27 @@ const FinanceManager = () => {
             showMessage('Dışa aktarılacak kayıt bulunamadı.', 'error');
             return;
         }
-        const headers = ['Tarih', 'Tür', 'Kategori', 'Başlık', 'Ödeme Yöntemi', 'Tutar (TL)', 'Açıklama'];
-        const rows = filteredTransactions.map(t => [
-            formatDate(t.transactionDate),
-            t.transactionType === 'Income' ? 'GELİR' : t.transactionType === 'Expense' ? 'GİDER' : t.transactionType,
-            `"${(t.category || '').replace(/"/g, '""')}"`,
-            `"${(t.title || '').replace(/"/g, '""')}"`,
-            t.paymentMethod === 'POS' ? 'POS / Kart' : 'Nakit',
-            (t.transactionType === 'Income' || t.transactionType === 'TransferIn' ? '' : '-') + Number(t.amount).toFixed(2),
-            `"${(t.description || '').replace(/"/g, '""')}"`
-        ]);
+        const headers = ['Tarih', 'Tür', 'Kategori', 'Başlık', 'Ödeme Yöntemi', 'Brüt Tutar (TL)', 'POS KDV (%20)', 'Net Kâr / Tutar (TL)', 'Açıklama'];
+        const rows = filteredTransactions.map(t => {
+            const isInc = t.transactionType === 'Income' || t.transactionType === 'TransferIn';
+            const isPos = String(t.paymentMethod).toUpperCase() === 'POS';
+            const isMem = (t.source === 'Membership') || (t.category && (t.category.includes('Üyelik') || t.category.includes('Spor')));
+            const isPosMem = isInc && isPos && isMem;
+            const vatAmt = isPosMem ? Math.round(Number(t.amount || 0) * 0.20 * 100) / 100 : 0;
+            const netAmt = isInc ? (Number(t.amount || 0) - vatAmt) : -Number(t.amount || 0);
+
+            return [
+                formatDate(t.transactionDate),
+                t.transactionType === 'Income' ? 'GELİR' : t.transactionType === 'Expense' ? 'GİDER' : t.transactionType,
+                `"${(t.category || '').replace(/"/g, '""')}"`,
+                `"${(t.title || '').replace(/"/g, '""')}"`,
+                t.paymentMethod === 'POS' ? 'POS / Kart' : 'Nakit',
+                (isInc ? '' : '-') + Number(t.amount).toFixed(2),
+                vatAmt > 0 ? `-${vatAmt.toFixed(2)}` : '0.00',
+                netAmt.toFixed(2),
+                `"${(t.description || '').replace(/"/g, '""')}"`
+            ];
+        });
         const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -1113,14 +1131,87 @@ const FinanceManager = () => {
 
     const filteredTransactions = useMemo(() => {
         const searchTokens = normalizeTurkishSearch(txSearch).split(' ').filter(Boolean);
+        const todayStr = new Date().toISOString().split('T')[0];
+
         return transactions.filter(t => {
             const matchType = txTypeFilter === 'All' || t.transactionType === txTypeFilter;
             const matchMethod = txMethodFilter === 'All' || t.paymentMethod === txMethodFilter;
+
+            // Tarih Filtresi
+            let matchDate = true;
+            if (t.transactionDate) {
+                const tDateStr = t.transactionDate.split('T')[0];
+
+                if (txDateRangeMode === 'today') {
+                    matchDate = tDateStr === todayStr;
+                } else if (txDateRangeMode === 'yesterday') {
+                    const y = new Date();
+                    y.setDate(y.getDate() - 1);
+                    const yStr = y.toISOString().split('T')[0];
+                    matchDate = tDateStr === yStr;
+                } else if (txDateRangeMode === '7d') {
+                    const d7 = new Date();
+                    d7.setDate(d7.getDate() - 6);
+                    const d7Str = d7.toISOString().split('T')[0];
+                    matchDate = tDateStr >= d7Str && tDateStr <= todayStr;
+                } else if (txDateRangeMode === 'this_month') {
+                    const mStart = new Date();
+                    mStart.setDate(1);
+                    const mStartStr = mStart.toISOString().split('T')[0];
+                    matchDate = tDateStr >= mStartStr;
+                } else if (txDateRangeMode === 'last_month') {
+                    const d = new Date();
+                    const lmStart = new Date(d.getFullYear(), d.getMonth() - 1, 1).toISOString().split('T')[0];
+                    const lmEnd = new Date(d.getFullYear(), d.getMonth(), 0).toISOString().split('T')[0];
+                    matchDate = tDateStr >= lmStart && tDateStr <= lmEnd;
+                } else if (txDateRangeMode === 'single_date') {
+                    if (txCustomDate) matchDate = tDateStr === txCustomDate;
+                } else if (txDateRangeMode === 'custom') {
+                    if (txStartDate && tDateStr < txStartDate) matchDate = false;
+                    if (txEndDate && tDateStr > txEndDate) matchDate = false;
+                }
+            }
+
             const target = normalizeTurkishSearch(`${t.title || ''} ${t.category || ''} ${t.description || ''}`);
             const matchSearch = searchTokens.length === 0 || searchTokens.every(tok => target.includes(tok));
-            return matchType && matchMethod && matchSearch;
+            return matchType && matchMethod && matchSearch && matchDate;
         });
-    }, [transactions, txTypeFilter, txMethodFilter, txSearch]);
+    }, [transactions, txTypeFilter, txMethodFilter, txSearch, txDateRangeMode, txCustomDate, txStartDate, txEndDate]);
+
+    // Seçili tarihe / filtrelere özel anlık özet istatistikleri
+    const ledgerStats = useMemo(() => {
+        let totalInc = 0;
+        let totalExp = 0;
+        let posGross = 0;
+        let posVat = 0;
+
+        filteredTransactions.forEach(t => {
+            const isInc = t.transactionType === 'Income' || t.transactionType === 'TransferIn';
+            const isExp = t.transactionType === 'Expense' || t.transactionType === 'TransferOut';
+            if (isInc) {
+                totalInc += Number(t.amount || 0);
+                const isPos = String(t.paymentMethod).toUpperCase() === 'POS';
+                const isMem = (t.source === 'Membership') ||
+                    (t.category && (t.category.includes('Üyelik') || t.category.includes('Spor')));
+                if (isPos && isMem) {
+                    const amt = Number(t.amount || 0);
+                    posGross += amt;
+                    posVat += Math.round(amt * 0.20 * 100) / 100;
+                }
+            } else if (isExp) {
+                totalExp += Number(t.amount || 0);
+            }
+        });
+
+        return {
+            totalIncome: totalInc,
+            totalExpense: totalExp,
+            posGross,
+            posVat,
+            netProfit: totalInc - totalExp - posVat,
+            count: filteredTransactions.length
+        };
+    }, [filteredTransactions]);
 
     const pendingCount = useMemo(() => pendingPayments.filter(p => p.status === 'Pending').length, [pendingPayments]);
     const lowStockProducts = useMemo(() => products.filter(p => p.isActive && p.stockQuantity <= p.minStockAlert), [products]);
@@ -1435,21 +1526,37 @@ const FinanceManager = () => {
                         )}
                     </div>
 
-                    {/* 5 Ana KPI Kartı */}
+                    {/* 6 Ana KPI Kartı (Ciro, POS %20 KDV, Gider, Net Kâr ve Kasa Bakiyeleri) */}
                     <div style={styles.kpiGrid}>
+                        {/* 1. TOPLAM CİRO */}
                         <div style={{ ...styles.kpiCard, borderLeft: '4px solid #10b981' }}>
                             <div style={styles.kpiHeader}>
-                                <span style={styles.kpiLabel}>TOPLAM GELİR</span>
+                                <span style={styles.kpiLabel}>TOPLAM CİRO (BRÜT)</span>
                                 <TrendingUp size={20} color="#10b981" />
                             </div>
                             <div style={{ ...styles.kpiValue, color: '#10b981' }}>
                                 {formatCurrency(dashboard.totalIncome)}
                             </div>
                             <div style={styles.kpiSub}>
-                                Üyelik: <b>{formatCurrency(dashboard.membershipIncome)}</b> | Satış: <b>{formatCurrency(dashboard.storeSaleIncome)}</b>
+                                Üyelik (Brüt): <b>{formatCurrency(dashboard.membershipIncome)}</b> | Mağaza: <b>{formatCurrency(dashboard.storeSaleIncome)}</b>
                             </div>
                         </div>
 
+                        {/* 2. POS ÜYELİK %20 KDV KESİNTİSİ */}
+                        <div style={{ ...styles.kpiCard, borderLeft: '4px solid #f59e0b' }}>
+                            <div style={styles.kpiHeader}>
+                                <span style={styles.kpiLabel}>POS ÜYELİK KDV (%20)</span>
+                                <Percent size={20} color="#f59e0b" />
+                            </div>
+                            <div style={{ ...styles.kpiValue, color: '#f59e0b' }}>
+                                -{formatCurrency(dashboard.posMembershipVatDeduction || 0)}
+                            </div>
+                            <div style={styles.kpiSub}>
+                                POS Brüt: <b>{formatCurrency(dashboard.posMembershipGrossIncome || 0)}</b> ➔ Net: <b style={{ color: '#10b981' }}>{formatCurrency(dashboard.posMembershipNetIncome || 0)}</b>
+                            </div>
+                        </div>
+
+                        {/* 3. TOPLAM GİDER */}
                         <div style={{ ...styles.kpiCard, borderLeft: '4px solid #ef4444' }}>
                             <div style={styles.kpiHeader}>
                                 <span style={styles.kpiLabel}>TOPLAM GİDER</span>
@@ -1463,22 +1570,24 @@ const FinanceManager = () => {
                             </div>
                         </div>
 
-                        <div style={{ ...styles.kpiCard, borderLeft: '4px solid #f59e0b' }}>
+                        {/* 4. NET KÂR (CİRO - GİDERLER - POS %20 KDV) */}
+                        <div style={{ ...styles.kpiCard, borderLeft: '4px solid #38bdf8' }}>
                             <div style={styles.kpiHeader}>
-                                <span style={styles.kpiLabel}>NET KÂR / BAKİYE</span>
-                                <DollarSign size={20} color="#f59e0b" />
+                                <span style={styles.kpiLabel}>NET KÂR (GERÇEK KAZANÇ)</span>
+                                <DollarSign size={20} color="#38bdf8" />
                             </div>
                             <div style={{
                                 ...styles.kpiValue,
-                                color: dashboard.netProfit >= 0 ? '#f59e0b' : '#ef4444'
+                                color: dashboard.netProfit >= 0 ? '#38bdf8' : '#ef4444'
                             }}>
                                 {formatCurrency(dashboard.netProfit)}
                             </div>
                             <div style={styles.kpiSub}>
-                                Ürün Satış Brüt Kârı: <b style={{ color: '#10b981' }}>{formatCurrency(dashboard.storeSaleGrossProfit)}</b>
+                                Ciro - Giderler - POS %20 KDV | Ürün Kârı: <b style={{ color: '#10b981' }}>{formatCurrency(dashboard.storeSaleGrossProfit)}</b>
                             </div>
                         </div>
 
+                        {/* 5. FİZİKİ NAKİT KASA */}
                         <div style={{ ...styles.kpiCard, borderLeft: '4px solid #22c55e' }}>
                             <div style={styles.kpiHeader}>
                                 <span style={styles.kpiLabel}>💵 FİZİKİ NAKİT KASA</span>
@@ -1492,6 +1601,7 @@ const FinanceManager = () => {
                             </div>
                         </div>
 
+                        {/* 6. POS / BANKA KASASI */}
                         <div style={{ ...styles.kpiCard, borderLeft: '4px solid #3b82f6' }}>
                             <div style={styles.kpiHeader}>
                                 <span style={styles.kpiLabel}>💳 POS / BANKA KASASI</span>
@@ -1653,6 +1763,124 @@ const FinanceManager = () => {
                                                     </td>
                                                     <td style={{ ...styles.td, fontWeight: '700', color: '#f59e0b' }}>
                                                         {formatCurrency(prod.totalProfit)}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ========================================================= */}
+                    {/* EN ÇOK TERCİH EDİLEN ÜYELİK PAKETLERİ & RAĞBET ANALİZİ      */}
+                    {/* ========================================================= */}
+                    <div style={{ ...styles.card, marginTop: '20px', border: '1px solid #333' }}>
+                        <div style={styles.cardHeader}>
+                            <div>
+                                <h3 style={styles.cardTitle}>
+                                    <Award size={20} color="#3b82f6" /> Üyelik Paketlerinin Rağbet Takibi & Satılan Bütün Paketlerin Pasta Grafiği
+                                </h3>
+                                <div style={{ fontSize: '0.78rem', color: '#888', marginTop: '4px' }}>
+                                    Seçili dönemde hangi spor üyelik paketinin kaç adet satıldığını, rağbet oranını (%), brüt cirosunu, POS tahsilatından düşülen %20 KDV kesintisini ve net kârını gösterir.
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setPackageDemandMode('count')}
+                                    style={packageDemandMode === 'count' ? styles.periodBtnActive : styles.periodBtn}
+                                >
+                                    📊 Adet Bazlı Rağbet (%)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPackageDemandMode('revenue')}
+                                    style={packageDemandMode === 'revenue' ? styles.periodBtnActive : styles.periodBtn}
+                                >
+                                    💰 Ciro Payı (%)
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px', alignItems: 'start' }}>
+                            {/* Sol: Satılan Bütün Paketlerin Pasta Grafiği */}
+                            <div style={{ backgroundColor: '#0d0d0d', border: '1px solid #242424', borderRadius: '10px', padding: '16px' }}>
+                                <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#60a5fa', marginBottom: '8px' }}>
+                                    🥧 SATILAN BÜTÜN PAKETLERİN PASTA GRAFİĞİ ({packageDemandMode === 'count' ? 'Satış Adedine Göre' : 'Ciro Payına Göre'})
+                                </div>
+                                {renderPieChart(
+                                    (dashboard.topSellingPackages || []).map(p => ({
+                                        label: p.packageName,
+                                        subLabel: packageDemandMode === 'count' ? `${p.totalSalesCount} Adet Satış` : formatCurrency(p.totalRevenue),
+                                        percentage: packageDemandMode === 'count' ? p.salesPercentage : p.revenuePercentage
+                                    })),
+                                    packageDemandMode === 'count' ? 'TOPLAM PAKET' : 'TOPLAM PAKET CİRO',
+                                    packageDemandMode === 'count'
+                                        ? `${(dashboard.topSellingPackages || []).reduce((s, x) => s + (x.totalSalesCount || 0), 0)} Adet`
+                                        : formatCurrency((dashboard.topSellingPackages || []).reduce((s, x) => s + (x.totalRevenue || 0), 0))
+                                )}
+                            </div>
+
+                            {/* Sağ: Tüm Paketlerin Rağbet Sıralaması Tablosu */}
+                            <div style={{ backgroundColor: '#0d0d0d', border: '1px solid #242424', borderRadius: '10px', padding: '16px', maxHeight: '360px', overflowY: 'auto' }}>
+                                <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#10b981', marginBottom: '10px' }}>
+                                    📈 TÜM ÜYELİK PAKETLERİNİN RAĞBET & GELİR TABLOSU
+                                </div>
+                                <table style={styles.table}>
+                                    <thead>
+                                        <tr>
+                                            <th style={styles.th}>#</th>
+                                            <th style={styles.th}>Paket Adı</th>
+                                            <th style={styles.th}>Satılan</th>
+                                            <th style={styles.th}>Rağbet Oranı</th>
+                                            <th style={styles.th}>Brüt Ciro</th>
+                                            <th style={styles.th}>POS Tahsilat</th>
+                                            <th style={styles.th}>POS KDV (%20)</th>
+                                            <th style={styles.th}>Net Kâr</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {((dashboard.allPackagesDemand && dashboard.allPackagesDemand.length > 0)
+                                            ? dashboard.allPackagesDemand
+                                            : (dashboard.topSellingPackages || [])
+                                        ).map((pkg, idx) => {
+                                            const pct = packageDemandMode === 'count' ? (pkg.salesPercentage || 0) : (pkg.revenuePercentage || 0);
+                                            const color = pkg.totalSalesCount > 0 ? PIE_COLORS[idx % PIE_COLORS.length] : '#555';
+                                            return (
+                                                <tr key={pkg.packageId || idx} style={styles.tr}>
+                                                    <td style={{ ...styles.td, color: '#888', fontWeight: '800' }}>{idx + 1}</td>
+                                                    <td style={styles.td}>
+                                                        <div style={{ fontWeight: '700', color: pkg.totalSalesCount > 0 ? '#fff' : '#777' }}>
+                                                            {pkg.packageName}
+                                                        </div>
+                                                        <div style={{ fontSize: '0.7rem', color: '#666' }}>
+                                                            {pkg.durationMonths ? `${pkg.durationMonths} Ay` : ''}{pkg.price ? ` | Liste: ${formatCurrency(pkg.price)}` : ''}
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ ...styles.td, fontWeight: '900', color: pkg.totalSalesCount > 0 ? '#60a5fa' : '#666' }}>
+                                                        {pkg.totalSalesCount} Adet
+                                                    </td>
+                                                    <td style={{ ...styles.td, minWidth: '110px' }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', marginBottom: '3px' }}>
+                                                            <span style={{ color, fontWeight: '800' }}>%{pct}</span>
+                                                        </div>
+                                                        <div style={styles.progressTrack}>
+                                                            <div style={{ ...styles.progressFill, width: `${Math.min(100, pct)}%`, backgroundColor: color }} />
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ ...styles.td, fontWeight: '700', color: '#10b981' }}>
+                                                        {formatCurrency(pkg.totalRevenue)}
+                                                    </td>
+                                                    <td style={{ ...styles.td, color: '#38bdf8', fontSize: '0.82rem' }}>
+                                                        {formatCurrency(pkg.posRevenue)}
+                                                    </td>
+                                                    <td style={{ ...styles.td, color: pkg.posVatDeduction > 0 ? '#f59e0b' : '#666', fontSize: '0.82rem' }}>
+                                                        {pkg.posVatDeduction > 0 ? `-${formatCurrency(pkg.posVatDeduction)}` : '0 ₺'}
+                                                    </td>
+                                                    <td style={{ ...styles.td, fontWeight: '800', color: '#34d399' }}>
+                                                        {formatCurrency(pkg.netProfit)}
                                                     </td>
                                                 </tr>
                                             );
@@ -3647,6 +3875,134 @@ const FinanceManager = () => {
             {/* ========================================================= */}
             {activeTab === 'ledger' && (
                 <div style={styles.card}>
+                    {/* Resmi Mali Kayıt ve Denetim Güvencesi */}
+                    <div style={{
+                        backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                        border: '1px solid rgba(59, 130, 246, 0.25)',
+                        borderRadius: '10px',
+                        padding: '12px 16px',
+                        marginBottom: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        fontSize: '0.82rem',
+                        color: '#93c5fd'
+                    }}>
+                        <Lock size={18} color="#60a5fa" style={{ flexShrink: 0 }} />
+                        <div>
+                            <strong>Resmi Mali Kayıt & Denetim Güvencesi:</strong> Kasa defterine işlenen tüm gelir, gider, virman ve POS hareketleri yasal muhasebe bütünlüğü ve denetim güvenliği gereğince silinemez. Tüm kayıtlar kalıcıdır.
+                        </div>
+                    </div>
+
+                    {/* Tarih ve Dönem Filtreleme Çubuğu */}
+                    <div style={{
+                        backgroundColor: '#0d0d0d',
+                        border: '1px solid #242424',
+                        borderRadius: '10px',
+                        padding: '12px 16px',
+                        marginBottom: '16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '10px'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.83rem', fontWeight: '700', color: '#e5e7eb' }}>
+                                <Filter size={15} color="#d90429" /> Tarih Filtreleme:
+                            </div>
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                {[
+                                    { id: 'all', label: 'Tüm Zamanlar' },
+                                    { id: 'today', label: 'Bugün' },
+                                    { id: 'yesterday', label: 'Dün' },
+                                    { id: '7d', label: 'Son 7 Gün' },
+                                    { id: 'this_month', label: 'Bu Ay' },
+                                    { id: 'last_month', label: 'Geçen Ay' },
+                                    { id: 'single_date', label: '📅 Belirli Bir Gün Seç' },
+                                    { id: 'custom', label: '📆 Tarih Aralığı Seç' }
+                                ].map(m => (
+                                    <button
+                                        key={m.id}
+                                        type="button"
+                                        onClick={() => setTxDateRangeMode(m.id)}
+                                        style={txDateRangeMode === m.id ? styles.periodBtnActive : styles.periodBtn}
+                                    >
+                                        {m.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {(txDateRangeMode === 'single_date' || txDateRangeMode === 'custom') && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', paddingTop: '8px', borderTop: '1px solid #1a1a1a' }}>
+                                {txDateRangeMode === 'single_date' && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ fontSize: '0.78rem', color: '#aaa' }}>Görüntülenecek Tarih:</span>
+                                        <input
+                                            type="date"
+                                            value={txCustomDate}
+                                            onChange={e => setTxCustomDate(e.target.value)}
+                                            style={{ ...styles.input, width: '160px' }}
+                                        />
+                                    </div>
+                                )}
+                                {txDateRangeMode === 'custom' && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                        <span style={{ fontSize: '0.78rem', color: '#aaa' }}>Başlangıç:</span>
+                                        <input
+                                            type="date"
+                                            value={txStartDate}
+                                            onChange={e => setTxStartDate(e.target.value)}
+                                            style={{ ...styles.input, width: '160px' }}
+                                        />
+                                        <span style={{ fontSize: '0.78rem', color: '#aaa' }}>Bitiş:</span>
+                                        <input
+                                            type="date"
+                                            value={txEndDate}
+                                            onChange={e => setTxEndDate(e.target.value)}
+                                            style={{ ...styles.input, width: '160px' }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Seçili Tarihe Özel Kasa & Finans Özeti */}
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                        gap: '12px',
+                        marginBottom: '16px'
+                    }}>
+                        <div style={{ backgroundColor: '#111', border: '1px solid #222', borderRadius: '8px', padding: '12px' }}>
+                            <div style={{ fontSize: '0.72rem', color: '#888', fontWeight: '700' }}>SEÇİLİ DÖNEM BRÜT CİRO</div>
+                            <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#10b981', marginTop: '4px' }}>
+                                {formatCurrency(ledgerStats.totalIncome)}
+                            </div>
+                            <div style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Toplam {ledgerStats.count} hareket</div>
+                        </div>
+                        <div style={{ backgroundColor: '#111', border: '1px solid #222', borderRadius: '8px', padding: '12px' }}>
+                            <div style={{ fontSize: '0.72rem', color: '#888', fontWeight: '700' }}>SEÇİLİ DÖNEM GİDER</div>
+                            <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#ef4444', marginTop: '4px' }}>
+                                {formatCurrency(ledgerStats.totalExpense)}
+                            </div>
+                        </div>
+                        <div style={{ backgroundColor: '#111', border: '1px solid #222', borderRadius: '8px', padding: '12px' }}>
+                            <div style={{ fontSize: '0.72rem', color: '#888', fontWeight: '700' }}>POS ÜYELİK %20 KDV KESİNTİSİ</div>
+                            <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#f59e0b', marginTop: '4px' }}>
+                                -{formatCurrency(ledgerStats.posVat)}
+                            </div>
+                            <div style={{ fontSize: '0.7rem', color: '#777', marginTop: '2px' }}>POS Üyelik: {formatCurrency(ledgerStats.posGross)}</div>
+                        </div>
+                        <div style={{ backgroundColor: '#111', border: '1px solid rgba(16, 185, 129, 0.4)', borderRadius: '8px', padding: '12px' }}>
+                            <div style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: '800' }}>SEÇİLİ DÖNEM NET KÂR</div>
+                            <div style={{ fontSize: '1.25rem', fontWeight: '900', color: '#10b981', marginTop: '4px' }}>
+                                {formatCurrency(ledgerStats.netProfit)}
+                            </div>
+                            <div style={{ fontSize: '0.7rem', color: '#888', marginTop: '2px' }}>Ciro - Gider - POS %20 KDV</div>
+                        </div>
+                    </div>
+
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
                         <h3 style={styles.cardTitle}>
                             <Receipt size={18} color="#d90429" /> Resmi Kasa Defteri ({filteredTransactions.length} Kayıt)
@@ -3690,7 +4046,7 @@ const FinanceManager = () => {
                                     <th style={styles.th}>Kasa / Ödeme</th>
                                     <th style={styles.th}>Tutar</th>
                                     <th style={styles.th}>Açıklama</th>
-                                    <th style={{ ...styles.th, width: '50px' }}>İşlem</th>
+                                    <th style={{ ...styles.th, width: '90px' }}>Kayıt Durumu</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -3698,6 +4054,14 @@ const FinanceManager = () => {
                                     const isInc = tx.transactionType === 'Income' || tx.transactionType === 'TransferIn';
                                     const isZ = tx.transactionType === 'ZReport';
                                     const isTransfer = tx.transactionType === 'TransferIn' || tx.transactionType === 'TransferOut';
+                                    const isMembershipPos = isInc && String(tx.paymentMethod).toUpperCase() === 'POS' && (
+                                        tx.source === 'Membership' ||
+                                        (tx.category && (tx.category.includes('Üyelik') || tx.category.includes('Spor'))) ||
+                                        (tx.title && (tx.title.includes('Üyelik') || tx.title.includes('Paket')))
+                                    );
+                                    const posVatAmount = isMembershipPos ? Math.round(Number(tx.amount || 0) * 0.20 * 100) / 100 : 0;
+                                    const posNetAmount = isMembershipPos ? Math.round(Number(tx.amount || 0) * 0.80 * 100) / 100 : Number(tx.amount || 0);
+
                                     return (
                                         <tr key={tx.id} style={styles.tr}>
                                             <td style={styles.td}>{formatDate(tx.transactionDate)}</td>
@@ -3730,24 +4094,40 @@ const FinanceManager = () => {
                                                     {tx.paymentMethod === 'POS' ? '💳 POS / Kart' : '💵 Nakit'}
                                                 </span>
                                             </td>
-                                            <td style={{
-                                                ...styles.td,
-                                                fontWeight: '900',
-                                                fontSize: '0.95rem',
-                                                color: isZ ? '#fcd34d' : isInc ? '#10b981' : '#ef4444'
-                                            }}>
-                                                {isZ ? '' : isInc ? '+' : '-'}{formatCurrency(tx.amount)}
+                                            <td style={{ ...styles.td }}>
+                                                <div style={{
+                                                    fontWeight: '900',
+                                                    fontSize: '0.95rem',
+                                                    color: isZ ? '#fcd34d' : isInc ? '#10b981' : '#ef4444'
+                                                }}>
+                                                    {isZ ? '' : isInc ? '+' : '-'}{formatCurrency(tx.amount)}
+                                                </div>
+                                                {isMembershipPos && (
+                                                    <div style={{ fontSize: '0.7rem', marginTop: '3px', lineHeight: '1.3' }}>
+                                                        <div style={{ color: '#f59e0b', fontWeight: '600' }}>KDV (%20): -{formatCurrency(posVatAmount)}</div>
+                                                        <div style={{ color: '#34d399', fontWeight: '800' }}>Net: {formatCurrency(posNetAmount)}</div>
+                                                    </div>
+                                                )}
                                             </td>
                                             <td style={{ ...styles.td, color: '#888', fontSize: '0.8rem' }}>{tx.description || '-'}</td>
                                             <td style={styles.td}>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleDeleteTransaction(tx.id)}
-                                                    style={styles.iconBtnDanger}
-                                                    title="Bu kasa hareketini sil"
+                                                <span
+                                                    style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px',
+                                                        padding: '3px 8px',
+                                                        borderRadius: '5px',
+                                                        backgroundColor: '#161616',
+                                                        border: '1px solid #262626',
+                                                        color: '#9ca3af',
+                                                        fontSize: '0.72rem',
+                                                        fontWeight: '700'
+                                                    }}
+                                                    title="Resmi Kasa Kaydı - Mali denetim ve defter bütünlüğü gereğince silinemez."
                                                 >
-                                                    <Trash2 size={14} />
-                                                </button>
+                                                    <Lock size={12} color="#6b7280" /> Kalıcı
+                                                </span>
                                             </td>
                                         </tr>
                                     );

@@ -629,6 +629,9 @@ namespace Fitness.Service.Service
                     ReferenceId = pending.Id
                 });
 
+                decimal posVat = Math.Round(posAmt * 0.20m, 2);
+                decimal posNet = posAmt - posVat;
+
                 await _context.FinancialTransactions.AddAsync(new FinancialTransaction
                 {
                     TransactionType = "Income",
@@ -638,12 +641,16 @@ namespace Fitness.Service.Service
                     Amount = posAmt,
                     PaymentMethod = "POS",
                     TransactionDate = DateTime.Now,
-                    Description = $"{typeLabel} Parçalı Tahsilat (Nakit: {cashAmt:0.##} ₺ / POS: {posAmt:0.##} ₺)",
+                    Description = $"{typeLabel} Parçalı Tahsilat (Nakit: {cashAmt:0.##} ₺ / POS: {posAmt:0.##} ₺) [KDV %20: -{posVat:0.##} ₺ | Net: {posNet:0.##} ₺]",
                     ReferenceId = pending.Id
                 });
             }
             else
             {
+                string desc = paymentMethod == "POS"
+                    ? $"{typeLabel} - POS / Kredi Kartı ile onaylandı. [KDV %20: -{Math.Round(pending.Amount * 0.20m, 2):0.##} ₺ | Net: {pending.Amount - Math.Round(pending.Amount * 0.20m, 2):0.##} ₺]"
+                    : $"{typeLabel} - Nakit olarak onaylandı.";
+
                 var tx = new FinancialTransaction
                 {
                     TransactionType = "Income",
@@ -653,7 +660,7 @@ namespace Fitness.Service.Service
                     Amount = pending.Amount,
                     PaymentMethod = paymentMethod,
                     TransactionDate = DateTime.Now,
-                    Description = $"{typeLabel} - {(paymentMethod == "POS" ? "POS / Kredi Kartı" : "Nakit")} olarak onaylandı.",
+                    Description = desc,
                     ReferenceId = pending.Id
                 };
                 await _context.FinancialTransactions.AddAsync(tx);
@@ -805,13 +812,51 @@ namespace Fitness.Service.Service
                              || (!p.ProcessedAt.HasValue && p.CreatedAt >= start && p.CreatedAt <= end)))
                 .ToListAsync();
 
+            var allPackages = await _context.MembershipPackages.AsNoTracking().ToListAsync();
+            var pkgLookup = allPackages.ToDictionary(p => p.Id);
+
             var incomes = transactions.Where(t => t.TransactionType == "Income").ToList();
             var expenses = transactions.Where(t => t.TransactionType == "Expense").ToList();
             var transfersIn = transactions.Where(t => t.TransactionType == "TransferIn").ToList();
             var transfersOut = transactions.Where(t => t.TransactionType == "TransferOut").ToList();
 
-            decimal totalIncome = incomes.Sum(t => t.Amount);
+            // Yardımcı: Bir gelir işleminin POS ile alınan Spor Üyeliği olup olmadığını belirleme
+            bool IsPosMembership(FinancialTransaction t)
+            {
+                if (!string.Equals(t.PaymentMethod, "POS", StringComparison.OrdinalIgnoreCase))
+                    return false;
+
+                if (string.Equals(t.Source, "Membership", StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                if (!string.IsNullOrWhiteSpace(t.Category) &&
+                    (t.Category.IndexOf("Üyelik", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     t.Category.IndexOf("Spor", StringComparison.OrdinalIgnoreCase) >= 0))
+                {
+                    return true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(t.Title) &&
+                    (t.Title.IndexOf("Üyelik", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     t.Title.IndexOf("Paket", StringComparison.OrdinalIgnoreCase) >= 0))
+                {
+                    return true;
+                }
+
+                return false;
+            }
+
+            // POS Spor Üyelikleri KDV & Kâr Ayrımı
+            var posMembershipIncomes = incomes.Where(IsPosMembership).ToList();
+            decimal posMembershipGrossIncome = posMembershipIncomes.Sum(t => t.Amount);
+            decimal posMembershipVatDeduction = Math.Round(posMembershipGrossIncome * 0.20m, 2); // %20 KDV
+            decimal posMembershipNetIncome = posMembershipGrossIncome - posMembershipVatDeduction;
+
+            decimal totalIncome = incomes.Sum(t => t.Amount); // TOPLAM CİRO (Brüt Hasılat)
             decimal totalExpense = expenses.Sum(t => t.Amount);
+
+            // NET KÂR: Toplam Ciro - Giderler - POS Üyelik %20 KDV Kesintisi
+            decimal netProfit = totalIncome - totalExpense - posMembershipVatDeduction;
 
             decimal cashIncome = incomes.Where(t => t.PaymentMethod == "Cash").Sum(t => t.Amount);
             decimal cashExpense = expenses.Where(t => t.PaymentMethod == "Cash").Sum(t => t.Amount);
@@ -836,8 +881,12 @@ namespace Fitness.Service.Service
                 StartDate = start.ToString("yyyy-MM-dd"),
                 EndDate = end.ToString("yyyy-MM-dd"),
                 TotalIncome = totalIncome,
+                TotalTurnover = totalIncome,
                 TotalExpense = totalExpense,
-                NetProfit = totalIncome - totalExpense,
+                NetProfit = netProfit,
+                PosMembershipGrossIncome = posMembershipGrossIncome,
+                PosMembershipVatDeduction = posMembershipVatDeduction,
+                PosMembershipNetIncome = posMembershipNetIncome,
                 CashIncome = cashIncome,
                 CashExpense = cashExpense,
                 CashBalance = (cashIncome + cashTransferIn) - (cashExpense + cashTransferOut),
@@ -898,6 +947,85 @@ namespace Fitness.Service.Service
                     .OrderByDescending(x => x.Amount)
                     .ToList();
             }
+
+            // RAĞBET GÖREN PAKETLER LİSTESİ (Tıpkı ürünler gibi adet, ciro, POS KDV ve net kâr analizli)
+            var groupedPackages = approvedMembershipsInPeriod
+                .GroupBy(p => p.PackageId.HasValue && p.PackageId.Value > 0 ? p.PackageId.Value.ToString() : (p.PackageName ?? "Standart Üyelik").Trim())
+                .Select(g =>
+                {
+                    var firstItem = g.First();
+                    int pkgId = firstItem.PackageId ?? 0;
+                    string pkgName = firstItem.PackageName;
+                    MembershipPackage? matchedPkg = null;
+                    if (pkgId > 0 && pkgLookup.TryGetValue(pkgId, out var mp))
+                    {
+                        matchedPkg = mp;
+                        pkgName = mp.Name;
+                    }
+                    else
+                    {
+                        matchedPkg = allPackages.FirstOrDefault(x => string.Equals(x.Name, pkgName, StringComparison.OrdinalIgnoreCase));
+                        if (matchedPkg != null) pkgId = matchedPkg.Id;
+                    }
+
+                    int count = g.Count();
+                    decimal totalRev = g.Sum(x => x.Amount);
+
+                    decimal posRev = g.Where(x => (x.ConfirmedPaymentMethod ?? "").ToUpperInvariant().Contains("POS")).Sum(x => x.Amount);
+                    decimal cashRev = totalRev - posRev;
+                    decimal posVat = Math.Round(posRev * 0.20m, 2);
+                    decimal pkgNetProfit = totalRev - posVat;
+
+                    return new TopPackageDto
+                    {
+                        PackageId = pkgId,
+                        PackageName = string.IsNullOrWhiteSpace(pkgName) ? (matchedPkg?.Name ?? "Standart Paket") : pkgName,
+                        Price = matchedPkg?.Price ?? (count > 0 ? Math.Round(totalRev / count, 2) : 0),
+                        DurationMonths = matchedPkg?.DurationMonths ?? 1,
+                        TotalSalesCount = count,
+                        TotalRevenue = totalRev,
+                        CashRevenue = cashRev,
+                        PosRevenue = posRev,
+                        PosVatDeduction = posVat,
+                        NetProfit = pkgNetProfit,
+                        SalesPercentage = approvedMembershipsInPeriod.Count > 0 ? Math.Round((double)count / approvedMembershipsInPeriod.Count * 100, 1) : 0,
+                        RevenuePercentage = totalPkgRev > 0 ? Math.Round((double)(totalRev / totalPkgRev * 100), 1) : 0
+                    };
+                })
+                .OrderByDescending(p => p.TotalSalesCount)
+                .ThenByDescending(p => p.TotalRevenue)
+                .ToList();
+
+            dto.TopSellingPackages = groupedPackages;
+
+            // Envanterdeki tüm paketlerin rağbet durumu (Hiç satılmayan 0 adet paketler dahil)
+            var soldPkgMap = groupedPackages.ToDictionary(p => p.PackageName, p => p, StringComparer.OrdinalIgnoreCase);
+            dto.AllPackagesDemand = allPackages
+                .Select(p =>
+                {
+                    if (soldPkgMap.TryGetValue(p.Name, out var soldInfo))
+                        return soldInfo;
+
+                    return new TopPackageDto
+                    {
+                        PackageId = p.Id,
+                        PackageName = p.Name,
+                        Price = p.Price,
+                        DurationMonths = p.DurationMonths,
+                        TotalSalesCount = 0,
+                        TotalRevenue = 0,
+                        CashRevenue = 0,
+                        PosRevenue = 0,
+                        PosVatDeduction = 0,
+                        NetProfit = 0,
+                        SalesPercentage = 0,
+                        RevenuePercentage = 0
+                    };
+                })
+                .OrderByDescending(p => p.TotalSalesCount)
+                .ThenByDescending(p => p.TotalRevenue)
+                .ThenBy(p => p.PackageName)
+                .ToList();
 
             // Satılan bütün ürünlerin rağbet ve satış dağılımı (Pasta Grafiği & Rağbet Tablosu için)
             var prodLookup = allProducts.ToDictionary(p => p.Name, p => p, StringComparer.OrdinalIgnoreCase);
@@ -961,8 +1089,10 @@ namespace Fitness.Service.Service
                 while (cursor <= end)
                 {
                     var nextMonth = cursor.AddMonths(1);
-                    var monthInc = incomes.Where(t => t.TransactionDate >= cursor && t.TransactionDate < nextMonth).Sum(t => t.Amount);
+                    var monthIncs = incomes.Where(t => t.TransactionDate >= cursor && t.TransactionDate < nextMonth).ToList();
+                    var monthInc = monthIncs.Sum(t => t.Amount);
                     var monthExp = expenses.Where(t => t.TransactionDate >= cursor && t.TransactionDate < nextMonth).Sum(t => t.Amount);
+                    var monthPosVat = Math.Round(monthIncs.Where(IsPosMembership).Sum(t => t.Amount) * 0.20m, 2);
 
                     dto.DailyTrend.Add(new DailyFinancePointDto
                     {
@@ -970,7 +1100,8 @@ namespace Fitness.Service.Service
                         Label = cursor.ToString("MMM yyyy", trCulture),
                         Income = monthInc,
                         Expense = monthExp,
-                        Net = monthInc - monthExp
+                        PosMembershipVat = monthPosVat,
+                        Net = monthInc - monthExp - monthPosVat
                     });
                     cursor = nextMonth;
                 }
@@ -984,8 +1115,10 @@ namespace Fitness.Service.Service
                 for (var day = start.Date; day <= maxEnd; day = day.AddDays(1))
                 {
                     var nextDay = day.AddDays(1);
-                    var dayInc = incomes.Where(t => t.TransactionDate >= day && t.TransactionDate < nextDay).Sum(t => t.Amount);
+                    var dayIncs = incomes.Where(t => t.TransactionDate >= day && t.TransactionDate < nextDay).ToList();
+                    var dayInc = dayIncs.Sum(t => t.Amount);
                     var dayExp = expenses.Where(t => t.TransactionDate >= day && t.TransactionDate < nextDay).Sum(t => t.Amount);
+                    var dayPosVat = Math.Round(dayIncs.Where(IsPosMembership).Sum(t => t.Amount) * 0.20m, 2);
 
                     dto.DailyTrend.Add(new DailyFinancePointDto
                     {
@@ -993,7 +1126,8 @@ namespace Fitness.Service.Service
                         Label = day.ToString("dd MMM", trCulture),
                         Income = dayInc,
                         Expense = dayExp,
-                        Net = dayInc - dayExp
+                        PosMembershipVat = dayPosVat,
+                        Net = dayInc - dayExp - dayPosVat
                     });
                 }
             }
@@ -1267,6 +1401,12 @@ namespace Fitness.Service.Service
 
                     if (posAmt > 0)
                     {
+                        bool isSportMem = category.IndexOf("Spor", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                          category.IndexOf("Üyelik", StringComparison.OrdinalIgnoreCase) >= 0;
+                        string posNote = isSportMem 
+                            ? $" [KDV %20: -{Math.Round(posAmt * 0.20m, 2):0.##} ₺ | Net: {posAmt - Math.Round(posAmt * 0.20m, 2):0.##} ₺]" 
+                            : "";
+
                         var txPos = new FinancialTransaction
                         {
                             TransactionType = "Income",
@@ -1276,9 +1416,9 @@ namespace Fitness.Service.Service
                             Amount = posAmt,
                             PaymentMethod = "POS",
                             TransactionDate = txDate,
-                            Description = string.IsNullOrWhiteSpace(desc) 
+                            Description = (string.IsNullOrWhiteSpace(desc) 
                                 ? $"Toplu Gelir Parçalı Ödeme (Nakit: {cashAmt:0.##} ₺ / POS: {posAmt:0.##} ₺)" 
-                                : $"{desc} - Parçalı Ödeme (Nakit: {cashAmt:0.##} ₺ / POS: {posAmt:0.##} ₺)"
+                                : $"{desc} - Parçalı Ödeme (Nakit: {cashAmt:0.##} ₺ / POS: {posAmt:0.##} ₺)") + posNote
                         };
                         createdList.Add(txPos);
                     }
@@ -1289,6 +1429,12 @@ namespace Fitness.Service.Service
                     decimal amount = item.Amount > 0 ? item.Amount : (singleMethod == "POS" ? posAmt : cashAmt);
                     if (amount <= 0) continue;
 
+                    bool isSportMem = singleMethod == "POS" && (category.IndexOf("Spor", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                                                category.IndexOf("Üyelik", StringComparison.OrdinalIgnoreCase) >= 0);
+                    string vatNote = isSportMem 
+                        ? $" [KDV %20: -{Math.Round(amount * 0.20m, 2):0.##} ₺ | Net: {amount - Math.Round(amount * 0.20m, 2):0.##} ₺]" 
+                        : "";
+
                     var tx = new FinancialTransaction
                     {
                         TransactionType = "Income",
@@ -1298,7 +1444,7 @@ namespace Fitness.Service.Service
                         Amount = amount,
                         PaymentMethod = singleMethod,
                         TransactionDate = txDate,
-                        Description = desc
+                        Description = (string.IsNullOrWhiteSpace(desc) ? (isSportMem ? "Toplu Spor Üyeliği Geliri" : "") : desc) + vatNote
                     };
                     createdList.Add(tx);
                 }
